@@ -30,22 +30,23 @@ Quick guide to deploy your Next.js frontend on Vercel.
    Click "Environment Variables" and add:
 
    ```env
-   # API Configuration
-   NEXT_PUBLIC_API_URL=http://YOUR_EC2_IP:5000/api
+   # API Configuration (IMPORTANT: Use exact variable name from code)
+   NEXT_PUBLIC_API_BASE_URL=http://YOUR_EC2_IP:5000/api
    # Or if using domain: https://api.yourdomain.com/api
 
-   # AWS Amplify (Authentication)
-   NEXT_PUBLIC_AWS_REGION=your-region
-   NEXT_PUBLIC_AWS_USER_POOL_ID=your-user-pool-id
-   NEXT_PUBLIC_AWS_USER_POOL_WEB_CLIENT_ID=your-client-id
-   NEXT_PUBLIC_AWS_OAUTH_DOMAIN=your-oauth-domain
+   # AWS Cognito (Authentication)
+   NEXT_PUBLIC_AWS_COGNITO_USER_POOL_ID=your-user-pool-id
+   NEXT_PUBLIC_AWS_COGNITO_USER_POOL_CLIENT_ID=your-app-client-id
+   NEXT_PUBLIC_AWS_COGNITO_DOMAIN=https://your-domain.auth.region.amazoncognito.com
 
-   # Mapbox (if used)
+   # Optional: Mapbox (if using maps)
    NEXT_PUBLIC_MAPBOX_TOKEN=your-mapbox-token
 
-   # Other configs
+   # Optional: App URL
    NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
    ```
+
+   **Important**: Use the exact variable names as shown above. They must match the code in `src/state/api.ts` and `src/app/(auth)/authProvider.tsx`
 
 6. **Deploy**
    - Click "Deploy"
@@ -177,14 +178,16 @@ npm run lint
 ### Environment Variables Not Working
 
 - Ensure variables start with `NEXT_PUBLIC_` for client-side
+- Use exact variable names: `NEXT_PUBLIC_API_BASE_URL` (not API_URL!)
 - Redeploy after adding variables
 - Check "Environment Variables" tab in Vercel
 
 ### API Connection Issues
 
-- Check `NEXT_PUBLIC_API_URL` is correct
+- Check `NEXT_PUBLIC_API_BASE_URL` is correct (must include `/api` at the end)
 - Verify backend CORS allows your Vercel domain
 - Check backend EC2 is running
+- Open browser console to see API errors
 
 ---
 

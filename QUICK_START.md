@@ -91,11 +91,11 @@ curl http://localhost:5000/health
 4. Import: afifmansib123/pujigori-deploy
 5. Root Directory: client
 6. Add Environment Variables:
-   - NEXT_PUBLIC_API_URL=http://YOUR_EC2_IP:5000/api
-   - NEXT_PUBLIC_AWS_REGION=your-region
-   - NEXT_PUBLIC_AWS_USER_POOL_ID=your-pool-id
-   - NEXT_PUBLIC_AWS_USER_POOL_WEB_CLIENT_ID=your-client-id
-   - (see client/DEPLOYMENT.md for full list)
+   - NEXT_PUBLIC_API_BASE_URL=http://YOUR_EC2_IP:5000/api
+   - NEXT_PUBLIC_AWS_COGNITO_USER_POOL_ID=your-pool-id
+   - NEXT_PUBLIC_AWS_COGNITO_USER_POOL_CLIENT_ID=your-client-id
+   - NEXT_PUBLIC_AWS_COGNITO_DOMAIN=https://your-domain.auth.region.amazoncognito.com
+   - (see client/.env.example for all required variables)
 7. Click Deploy
 8. Wait 2-3 minutes
 9. Done! Your app is live!
@@ -150,7 +150,8 @@ pm2 logs pujigori-backend --lines 50
 ```bash
 # 1. Check EC2 security group allows port 5000
 # 2. Check CORS in backend .env
-# 3. Verify NEXT_PUBLIC_API_URL is correct
+# 3. Verify NEXT_PUBLIC_API_BASE_URL is correct (includes /api)
+# 4. Check browser console for API errors
 ```
 
 ### MongoDB connection failed?

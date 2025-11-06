@@ -179,19 +179,21 @@ ALLOWED_ORIGINS=https://your-app.vercel.app
 
 ### Frontend (Vercel Environment Variables)
 ```env
-# API
-NEXT_PUBLIC_API_URL=http://YOUR_EC2_IP:5000/api
+# API (IMPORTANT: Must be NEXT_PUBLIC_API_BASE_URL, not API_URL!)
+NEXT_PUBLIC_API_BASE_URL=http://YOUR_EC2_IP:5000/api
+# Or with domain: https://api.yourdomain.com/api
 
-# AWS Cognito
-NEXT_PUBLIC_AWS_REGION=ap-southeast-1
-NEXT_PUBLIC_AWS_USER_POOL_ID=ap-southeast-1_xxxxx
-NEXT_PUBLIC_AWS_USER_POOL_WEB_CLIENT_ID=xxxxx
-NEXT_PUBLIC_AWS_OAUTH_DOMAIN=your-domain.auth.region.amazoncognito.com
+# AWS Cognito Authentication
+NEXT_PUBLIC_AWS_COGNITO_USER_POOL_ID=ap-southeast-1_xxxxx
+NEXT_PUBLIC_AWS_COGNITO_USER_POOL_CLIENT_ID=xxxxx
+NEXT_PUBLIC_AWS_COGNITO_DOMAIN=https://your-domain.auth.ap-southeast-1.amazoncognito.com
 
 # Optional
 NEXT_PUBLIC_MAPBOX_TOKEN=pk.xxxxx
 NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
 ```
+
+**Note**: Variable names must match exactly as used in your code! See `client/.env.example` for reference.
 
 ---
 
@@ -322,7 +324,8 @@ free -h
 1. Check backend is running: `pm2 status`
 2. Check CORS allows frontend URL
 3. Check EC2 security group allows port 5000
-4. Verify `NEXT_PUBLIC_API_URL` is correct
+4. Verify `NEXT_PUBLIC_API_BASE_URL` is correct (must include `/api`)
+5. Check browser console for specific error messages
 
 ### Issue: MongoDB connection failed
 **Solution:**
