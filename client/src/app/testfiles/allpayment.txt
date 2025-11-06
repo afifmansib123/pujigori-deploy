@@ -1,0 +1,777 @@
+// This is a test page
+
+"use client"
+import React, { useState, useEffect } from 'react';
+import {
+  useInitiatePaymentMutation,
+  useGetPaymentMethodsQuery,
+  useGetPaymentStatusQuery,
+  useGetPaymentStatisticsQuery,
+  useInitiateRefundMutation,
+  // useVerifyPaymentMutation, // REMOVED - this method doesn't exist anymore
+  useGetTrendingProjectsQuery
+} from "@/state/api";
+
+const PaymentAPITestWithRealData = () => {
+  const [activeTest, setActiveTest] = useState('project-overview');
+  const [testInputs, setTestInputs] = useState({
+    // Using your real project data
+    projectId: '68a17a471de260e8e2f61563',
+    amount: 500, // Default to Early Supporter tier
+    customerName: 'Test User',
+    customerEmail: 'test@example.com',
+    customerPhone: '01700000000',
+    customerAddress: 'Dhaka, Bangladesh',
+    isAnonymous: false,
+    message: 'Supporting clean water initiative in rural Bangladesh',
+    rewardTierId: '68a17a471de260e8e2f61564', // Early Supporter tier
+
+    // Status checking
+    transactionId: '',
+
+    // Statistics
+    statisticsStartDate: '2024-08-01',
+    statisticsEndDate: new Date().toISOString().split('T')[0],
+
+    // Refund
+    refundReason: 'Test refund for water purifier project'
+
+    // REMOVED validation fields since verifyPayment is gone
+  });
+
+  // Real project data from your MongoDB
+  const realProjectData = {
+    _id: "68a17a471de260e8e2f61563",
+    title: "Smart Water Purifier for Rural Bangladesh",
+    description: "We are developing an affordable, solar-powered water purification system specifically designed for rural communities in Bangladesh.",
+    shortDescription: "Solar-powered water purifier for rural communities",
+    category: "health",
+    targetAmount: 150000,
+    currentAmount: 0,
+    location: {
+      district: "Sylhet",
+      division: "Sylhet"
+    },
+    rewardTiers: [
+      {
+        _id: "68a17a471de260e8e2f61564",
+        title: "Early Supporter",
+        description: "Thank you note and project updates",
+        minimumAmount: 500,
+        maxBackers: 200,
+        currentBackers: 0,
+        items: ["Digital thank you note", "Monthly progress updates"]
+      },
+      {
+        _id: "68a17a471de260e8e2f61565",
+        title: "Community Champion",
+        description: "Help us install one unit in a village",
+        minimumAmount: 2500,
+        maxBackers: 60,
+        currentBackers: 0,
+        items: ["Thank you note", "Installation photos", "Community impact report"]
+      },
+      {
+        _id: "68a17a471de260e8e2f61566",
+        title: "Water Hero",
+        description: "Get your own water purifier unit",
+        minimumAmount: 8000,
+        maxBackers: 25,
+        currentBackers: 0,
+        items: ["Personal water purifier unit", "Installation guide", "1-year warranty"]
+      }
+    ]
+  };
+
+  // REAL API Hooks - These will make actual network calls
+  const { data: paymentMethodsData, error: paymentMethodsError, refetch: refetchPaymentMethods, isLoading: isPaymentMethodsLoading } = useGetPaymentMethodsQuery();
+
+  const { data: paymentStatusData, error: paymentStatusError, refetch: refetchPaymentStatus, isLoading: isPaymentStatusLoading } = useGetPaymentStatusQuery(testInputs.transactionId, {
+    skip: !testInputs.transactionId
+  });
+
+  const { data: statisticsData, error: statisticsError, refetch: refetchStatistics, isLoading: isStatisticsLoading } = useGetPaymentStatisticsQuery({
+    startDate: testInputs.statisticsStartDate,
+    endDate: testInputs.statisticsEndDate
+  });
+
+  // Get trending projects for testing (this should include your project)
+  const { data: projectsData, error: projectsError } = useGetTrendingProjectsQuery({ limit: 10 });
+
+  // Mutations - These will make actual POST requests
+  const [initiatePayment, { isLoading: isInitiatingPayment, error: initiatePaymentError }] = useInitiatePaymentMutation();
+  const [initiateRefund, { isLoading: isInitiatingRefund, error: refundError }] = useInitiateRefundMutation();
+  // REMOVED verifyPayment mutation
+
+  const [results, setResults] = useState([]);
+  const [expandedResult, setExpandedResult] = useState(null);
+
+  // Load saved inputs from localStorage
+  useEffect(() => {
+    const savedInputs = localStorage.getItem('payment-api-test-inputs-real');
+    if (savedInputs) {
+      try {
+        setTestInputs(prev => ({ ...prev, ...JSON.parse(savedInputs) }));
+      } catch (e) {
+        console.error('Failed to load saved inputs:', e);
+      }
+    }
+  }, []);
+
+  // Save inputs to localStorage
+  useEffect(() => {
+    localStorage.setItem('payment-api-test-inputs-real', JSON.stringify(testInputs));
+  }, [testInputs]);
+
+  // Auto-populate project ID from trending projects if your project is found
+  useEffect(() => {
+    if (projectsData?.data?.length > 0) {
+      const foundProject = projectsData.data.find(p => p._id === realProjectData._id);
+      if (foundProject && !testInputs.projectId) {
+        setTestInputs(prev => ({
+          ...prev,
+          projectId: foundProject._id
+        }));
+      } else if (!foundProject && projectsData.data.length > 0 && !testInputs.projectId) {
+        // If your project isn't in trending, use the first available project
+        setTestInputs(prev => ({
+          ...prev,
+          projectId: projectsData.data[0]._id
+        }));
+      }
+    }
+  }, [projectsData]);
+
+  const addResult = (title, data, error = null, duration = null) => {
+    const result = {
+      timestamp: new Date().toISOString(),
+      title,
+      success: !error,
+      data: error ? null : data,
+      error: error?.data?.message || error?.message || error,
+      duration,
+      id: Math.random().toString(36).substr(2, 9)
+    };
+    setResults(prev => [result, ...prev.slice(0, 49)]);
+  };
+
+  const measureTime = (fn) => {
+    return async (...args) => {
+      const start = performance.now();
+      try {
+        const result = await fn(...args);
+        const duration = Math.round(performance.now() - start);
+        return { result, duration };
+      } catch (error) {
+        const duration = Math.round(performance.now() - start);
+        throw { error, duration };
+      }
+    };
+  };
+
+  // REAL API CALLS
+  const handleTestPaymentMethods = async () => {
+    try {
+      const { result, duration } = await measureTime(refetchPaymentMethods)();
+      addResult('Get Payment Methods', result.data, null, duration);
+    } catch ({ error, duration }) {
+      addResult('Get Payment Methods', null, error, duration);
+    }
+  };
+
+  const handleInitiatePayment = async () => {
+    if (!testInputs.projectId || !testInputs.amount || !testInputs.customerName || !testInputs.customerEmail) {
+      addResult('Initiate Payment', null, 'Project ID, amount, customer name, and email are required');
+      return;
+    }
+
+    try {
+      const start = performance.now();
+      const result = await initiatePayment({
+        projectId: testInputs.projectId,
+        amount: testInputs.amount,
+        rewardTierId: testInputs.rewardTierId || undefined,
+        customerName: testInputs.customerName,
+        customerEmail: testInputs.customerEmail,
+        customerPhone: testInputs.customerPhone,
+        customerAddress: testInputs.customerAddress,
+        isAnonymous: testInputs.isAnonymous,
+        message: testInputs.message
+      }).unwrap();
+      const duration = Math.round(performance.now() - start);
+
+      // Auto-populate transaction ID for other tests
+      if (result.data?.transactionId) {
+        setTestInputs(prev => ({
+          ...prev,
+          transactionId: result.data.transactionId
+        }));
+      }
+
+      addResult('Initiate Payment', result, null, duration);
+    } catch (error) {
+      addResult('Initiate Payment', null, error);
+    }
+  };
+
+  const handleTestPaymentStatus = async () => {
+    if (!testInputs.transactionId) {
+      addResult('Get Payment Status', null, 'Transaction ID is required');
+      return;
+    }
+    try {
+      const { result, duration } = await measureTime(refetchPaymentStatus)();
+      addResult('Get Payment Status', result.data, null, duration);
+    } catch ({ error, duration }) {
+      addResult('Get Payment Status', null, error, duration);
+    }
+  };
+
+  const handleTestStatistics = async () => {
+    try {
+      const { result, duration } = await measureTime(refetchStatistics)();
+      addResult('Get Payment Statistics', result.data, null, duration);
+    } catch ({ error, duration }) {
+      addResult('Get Payment Statistics', null, error, duration);
+    }
+  };
+
+  const handleInitiateRefund = async () => {
+    if (!testInputs.transactionId) {
+      addResult('Initiate Refund', null, 'Transaction ID is required');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to initiate a refund for this transaction?')) {
+      return;
+    }
+
+    try {
+      const start = performance.now();
+      const result = await initiateRefund({
+        transactionId: testInputs.transactionId,
+        reason: testInputs.refundReason
+      }).unwrap();
+      const duration = Math.round(performance.now() - start);
+      addResult('Initiate Refund', result, null, duration);
+    } catch (error) {
+      addResult('Initiate Refund', null, error);
+    }
+  };
+
+  // REMOVED handleVerifyPayment function entirely
+
+  const LoadingSpinner = () => (
+    <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+  );
+
+  const StatusIndicator = ({ data, error, isLoading }) => {
+    if (isLoading) return <span className="text-blue-600 text-xs">Loading...</span>;
+    if (error) return <span className="text-red-600 text-xs">Error</span>;
+    if (data) return <span className="text-green-600 text-xs">Loaded</span>;
+    return <span className="text-gray-400 text-xs">Not loaded</span>;
+  };
+
+  const testSections = [
+    {
+      id: 'project-overview',
+      title: 'Project Overview',
+      description: 'Your MongoDB Project Data',
+      status: <span className="text-green-600 text-xs">Loaded</span>,
+      component: (
+        <div className="space-y-4">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+            <h3 className="font-bold text-lg text-green-800 mb-2">{realProjectData.title}</h3>
+            <p className="text-green-700 text-sm mb-4">{realProjectData.shortDescription}</p>
+
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="font-medium">Target:</span> BDT {realProjectData.targetAmount.toLocaleString()}
+              </div>
+              <div>
+                <span className="font-medium">Current:</span> BDT {realProjectData.currentAmount.toLocaleString()}
+              </div>
+              <div>
+                <span className="font-medium">Location:</span> {realProjectData.location.district}, {realProjectData.location.division}
+              </div>
+              <div>
+                <span className="font-medium">Category:</span> {realProjectData.category}
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <h4 className="font-medium mb-2">Reward Tiers:</h4>
+              <div className="space-y-2">
+                {realProjectData.rewardTiers.map(tier => (
+                  <div key={tier._id} className="bg-white p-3 rounded border">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="font-medium">{tier.title}</span>
+                        <p className="text-xs text-gray-600">{tier.description}</p>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-medium text-green-600">BDT {tier.minimumAmount}</div>
+                        <div className="text-xs text-gray-500">{tier.currentBackers}/{tier.maxBackers} backers</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded p-4">
+            <h4 className="font-medium text-blue-800 mb-2">API Project Detection:</h4>
+            {projectsData ? (
+              projectsData.data?.find(p => p._id === realProjectData._id) ? (
+                <p className="text-sm text-green-700">✅ Your project was found in the API response!</p>
+              ) : (
+                <div className="text-sm text-yellow-700">
+                  <p>⚠️ Your project wasn't found in trending projects.</p>
+                  <p className="text-xs mt-1">Available projects: {projectsData.data?.length || 0}</p>
+                  {projectsData.data?.length > 0 && (
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-blue-600">Show available projects</summary>
+                      <div className="mt-2 text-xs space-y-1">
+                        {projectsData.data.slice(0, 5).map(p => (
+                          <div key={p._id}>{p.title} ({p._id})</div>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                </div>
+              )
+            ) : projectsError ? (
+              <p className="text-sm text-red-700">❌ Error loading projects: {projectsError?.data?.message || 'Unknown error'}</p>
+            ) : (
+              <p className="text-sm text-blue-700">🔄 Loading projects from API...</p>
+            )}
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'payment-methods',
+      title: 'Payment Methods',
+      description: 'GET /api/payments/methods',
+      status: <StatusIndicator data={paymentMethodsData} error={paymentMethodsError} isLoading={isPaymentMethodsLoading} />,
+      component: (
+        <div className="space-y-4">
+          <button
+            onClick={handleTestPaymentMethods}
+            disabled={isPaymentMethodsLoading}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isPaymentMethodsLoading && <LoadingSpinner />}
+            Test Get Payment Methods
+          </button>
+          {paymentMethodsData && (
+            <div className="bg-gray-50 p-4 rounded">
+              <h4 className="font-medium mb-2">Current Data:</h4>
+              <p className="text-sm text-gray-600">
+                Primary method: {paymentMethodsData?.data?.primary}
+              </p>
+              <p className="text-xs text-gray-500">
+                Environment: {paymentMethodsData?.data?.environment} | Currency: {paymentMethodsData?.data?.currency}
+              </p>
+              <p className="text-xs text-gray-500">
+                Range: {paymentMethodsData?.data?.currency} {paymentMethodsData?.data?.minAmount} - {paymentMethodsData?.data?.maxAmount}
+              </p>
+            </div>
+          )}
+          {paymentMethodsError && (
+            <div className="bg-red-50 p-4 rounded">
+              <p className="text-red-700 text-sm">{paymentMethodsError?.data?.message || 'Error loading payment methods'}</p>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'initiate-payment',
+      title: 'Initiate Payment',
+      description: 'POST /api/payments/initiate',
+      status: null,
+      component: (
+        <div className="space-y-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-4">
+            <p className="text-yellow-800 text-sm">
+              Using project: <strong>{realProjectData.title}</strong>
+            </p>
+            <p className="text-yellow-700 text-xs">Project ID: {testInputs.projectId}</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Project:</label>
+              <select
+                value={testInputs.projectId}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, projectId: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              >
+                <option value={realProjectData._id}>{realProjectData.title} (Your project)</option>
+                {projectsData?.data?.map(project => (
+                  <option key={project._id} value={project._id}>
+                    {project.title} (${project.targetAmount})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Reward Tier:</label>
+              <select
+                value={testInputs.rewardTierId}
+                onChange={(e) => {
+                  const selectedTier = realProjectData.rewardTiers.find(tier => tier._id === e.target.value);
+                  setTestInputs(prev => ({
+                    ...prev,
+                    rewardTierId: e.target.value,
+                    amount: selectedTier ? selectedTier.minimumAmount : 500
+                  }));
+                }}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              >
+                {realProjectData.rewardTiers.map(tier => (
+                  <option key={tier._id} value={tier._id}>
+                    {tier.title} - BDT {tier.minimumAmount}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Amount (BDT):</label>
+              <input
+                type="number"
+                value={testInputs.amount}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, amount: Number(e.target.value) }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+                min="10"
+                max="500000"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Customer Name:</label>
+              <input
+                type="text"
+                value={testInputs.customerName}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, customerName: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Customer Email:</label>
+              <input
+                type="email"
+                value={testInputs.customerEmail}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, customerEmail: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Phone:</label>
+              <input
+                type="text"
+                value={testInputs.customerPhone}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, customerPhone: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Address:</label>
+            <input
+              type="text"
+              value={testInputs.customerAddress}
+              onChange={(e) => setTestInputs(prev => ({ ...prev, customerAddress: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Message:</label>
+            <textarea
+              value={testInputs.message}
+              onChange={(e) => setTestInputs(prev => ({ ...prev, message: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              rows="3"
+            />
+          </div>
+
+          <div className="flex items-center gap-4">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={testInputs.isAnonymous}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, isAnonymous: e.target.checked }))}
+                className="mr-2"
+              />
+              Anonymous Donation
+            </label>
+          </div>
+
+          <button
+            onClick={handleInitiatePayment}
+            disabled={isInitiatingPayment || !testInputs.projectId}
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isInitiatingPayment && <LoadingSpinner />}
+            {isInitiatingPayment ? 'Initiating...' : 'Test Initiate Payment'}
+          </button>
+
+          {initiatePaymentError && (
+            <div className="bg-red-50 p-4 rounded">
+              <p className="text-red-700 text-sm">{initiatePaymentError?.data?.message || 'Error initiating payment'}</p>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'payment-status',
+      title: 'Payment Status',
+      description: 'GET /api/payments/:transactionId/status',
+      status: <StatusIndicator data={paymentStatusData} error={paymentStatusError} isLoading={isPaymentStatusLoading} />,
+      component: (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Transaction ID:</label>
+            <input
+              type="text"
+              value={testInputs.transactionId}
+              onChange={(e) => setTestInputs(prev => ({ ...prev, transactionId: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              placeholder="PG-123456789"
+            />
+          </div>
+          <button
+            onClick={handleTestPaymentStatus}
+            disabled={!testInputs.transactionId || isPaymentStatusLoading}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isPaymentStatusLoading && <LoadingSpinner />}
+            Test Get Payment Status
+          </button>
+          {paymentStatusData && (
+            <div className="bg-gray-50 p-4 rounded">
+              <h4 className="font-medium mb-2">Current Data:</h4>
+              <p className="text-sm text-gray-600">
+                Status: <span className={`font-medium ${paymentStatusData?.data?.status === 'completed' ? 'text-green-600' : 'text-yellow-600'}`}>
+                  {paymentStatusData?.data?.status}
+                </span>
+              </p>
+              <p className="text-xs text-gray-500">
+                Amount: {paymentStatusData?.data?.amount}
+              </p>
+            </div>
+          )}
+          {paymentStatusError && (
+            <div className="bg-red-50 p-4 rounded">
+              <p className="text-red-700 text-sm">{paymentStatusError?.data?.message || 'Error loading payment status'}</p>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'payment-statistics',
+      title: 'Payment Statistics',
+      description: 'GET /api/payments/statistics',
+      status: <StatusIndicator data={statisticsData} error={statisticsError} isLoading={isStatisticsLoading} />,
+      component: (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Start Date:</label>
+              <input
+                type="date"
+                value={testInputs.statisticsStartDate}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, statisticsStartDate: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">End Date:</label>
+              <input
+                type="date"
+                value={testInputs.statisticsEndDate}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, statisticsEndDate: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              />
+            </div>
+          </div>
+          <button
+            onClick={handleTestStatistics}
+            disabled={isStatisticsLoading}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isStatisticsLoading && <LoadingSpinner />}
+            Test Get Payment Statistics
+          </button>
+          {statisticsData && (
+            <div className="bg-gray-50 p-4 rounded">
+              <h4 className="font-medium mb-2">Current Data:</h4>
+              <p className="text-sm text-gray-600">
+                Total Amount: {statisticsData?.data?.overview?.totalAmount || 0}
+              </p>
+              <p className="text-xs text-gray-500">
+                Donations: {statisticsData?.data?.overview?.donationCount} |
+                Avg: {statisticsData?.data?.overview?.averageDonation || 0}
+              </p>
+            </div>
+          )}
+          {statisticsError && (
+            <div className="bg-red-50 p-4 rounded">
+              <p className="text-red-700 text-sm">{statisticsError?.data?.message || 'Error loading statistics'}</p>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'initiate-refund',
+      title: 'Initiate Refund',
+      description: 'POST /api/payments/:transactionId/refund',
+      status: null,
+      component: (
+        <div className="space-y-4">
+          <div className="bg-red-50 border border-red-200 rounded p-3 mb-4">
+            <p className="text-red-800 text-sm font-medium">
+              ⚠️ Warning: This will attempt to process a real refund!
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Transaction ID:</label>
+            <input
+              type="text"
+              value={testInputs.transactionId}
+              onChange={(e) => setTestInputs(prev => ({ ...prev, transactionId: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              placeholder="PG-123456789"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Refund Reason:</label>
+            <textarea
+              value={testInputs.refundReason}
+              onChange={(e) => setTestInputs(prev => ({ ...prev, refundReason: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              rows="3"
+            />
+          </div>
+          <button
+            onClick={handleInitiateRefund}
+            disabled={isInitiatingRefund || !testInputs.transactionId}
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isInitiatingRefund && <LoadingSpinner />}
+            {isInitiatingRefund ? 'Processing...' : 'Test Initiate Refund'}
+          </button>
+          {refundError && (
+            <div className="bg-red-50 p-4 rounded">
+              <p className="text-red-700 text-sm">{refundError?.data?.message || 'Error initiating refund'}</p>
+            </div>
+          )}
+        </div>
+      )
+    }
+    // REMOVED the verify-payment section entirely
+  ];
+
+  return (
+    <div className="max-w-7xl mx-auto p-6 bg-gray-50 min-h-screen">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Payment API Test Suite - REAL API CALLS</h1>
+        <p className="text-gray-600">Testing with actual network requests to your payment API</p>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {testSections.map((section) => (
+            <button
+              key={section.id}
+              onClick={() => setActiveTest(section.id)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200
+                ${activeTest === section.id
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                }`}
+            >
+              {section.title}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* API Test Controls */}
+        <div className="md:col-span-2 bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-2xl font-semibold text-gray-800 mb-4">
+            {testSections.find(s => s.id === activeTest)?.title}
+            <span className="ml-2 text-sm text-gray-500 font-normal">
+              {testSections.find(s => s.id === activeTest)?.description}
+            </span>
+          </h2>
+          <div className="mb-6">
+            {testSections.find(s => s.id === activeTest)?.component}
+          </div>
+        </div>
+
+        {/* Results Panel */}
+        <div className="md:col-span-1 bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center justify-between">
+            API Call Results
+            <button
+              onClick={() => setResults([])}
+              className="text-red-500 hover:text-red-700 text-sm font-normal"
+            >
+              Clear
+            </button>
+          </h2>
+          <div className="space-y-3 max-h-[calc(100vh-250px)] overflow-y-auto">
+            {results.length === 0 ? (
+              <p className="text-gray-500 text-sm">No API calls made yet. Results will appear here.</p>
+            ) : (
+              results.map((result) => (
+                <div
+                  key={result.id}
+                  className={`border rounded-lg p-3 cursor-pointer transition-all duration-200
+                    ${result.success ? 'border-green-300 bg-green-50 hover:bg-green-100' : 'border-red-300 bg-red-50 hover:bg-red-100'}
+                  `}
+                  onClick={() => setExpandedResult(expandedResult?.id === result.id ? null : result)}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="font-medium text-gray-900">{result.title}</span>
+                      <span className={`ml-2 text-xs font-semibold ${result.success ? 'text-green-700' : 'text-red-700'}`}>
+                        {result.success ? 'SUCCESS' : 'FAILED'}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      {result.duration !== null && (
+                        <span className="text-xs text-gray-500">{result.duration}ms</span>
+                      )}
+                      <div className="text-xs text-gray-400">{new Date(result.timestamp).toLocaleTimeString()}</div>
+                    </div>
+                  </div>
+                  {expandedResult?.id === result.id && (
+                    <pre className="mt-2 text-xs text-gray-700 bg-gray-100 p-2 rounded overflow-x-auto whitespace-pre-wrap">
+                      {result.success ? JSON.stringify(result.data, null, 2) : result.error ? JSON.stringify(result.error, null, 2) : 'No error details'}
+                    </pre>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PaymentAPITestWithRealData;

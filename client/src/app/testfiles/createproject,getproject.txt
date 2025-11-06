@@ -1,0 +1,429 @@
+"use client"
+import React, { useState } from 'react';
+import { useGetProjectsByCreatorQuery, useCreateProjectMutation } from "@/state/api"
+
+const CreatorDashboardTest = () => {
+  const [createProject, { isLoading: isCreating, error: createError }] = useCreateProjectMutation();
+  
+  // Current logged-in creator ID
+  const creatorId = "e93ef468-70b1-7055-5e1d-ef5321388108";
+  
+  const { data: projectsResponse, error: fetchError, refetch } = useGetProjectsByCreatorQuery({
+    creatorId,
+    page: 1,
+    limit: 10
+  });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState('');
+
+  const [formData, setFormData] = useState({
+    title: "Green Rooftop Gardens Initiative",
+    description: "Transform unused rooftop spaces across urban Dhaka into productive vegetable gardens that provide fresh food to local communities while reducing environmental impact and creating sustainable income opportunities for residents.",
+    shortDescription: "Creating sustainable rooftop gardens in urban Dhaka for fresh vegetables and community income.",
+    category: "environment",
+    targetAmount: 75000,
+    startDate: "2025-02-01",
+    endDate: "2025-08-31",
+    location: {
+      district: "Dhaka",
+      division: "Dhaka"
+    },
+    story: "Urban Dhaka faces a growing challenge: limited access to fresh, affordable vegetables and increasing environmental concerns. Our rooftop gardens project addresses both issues by converting unused rooftop spaces into thriving vegetable gardens. We've already successfully piloted this concept on 3 buildings, producing over 200kg of fresh vegetables monthly. With your support, we can expand to 25 rooftops, training 100 families in sustainable gardening techniques, providing fresh food to 500+ residents, and creating supplementary income for participating households.",
+    risks: "Monsoon weather may temporarily affect production during heavy rain periods. Initial setup requires coordination with building owners and residents. We have waterproof growing systems and backup indoor growing areas to ensure year-round production.",
+    images: [
+      "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1586773860418-d37222d8eeb4?w=800&h=600&fit=crop"
+    ],
+    videoUrl: "https://www.youtube.com/watch?v=example123",
+    tags: ["environment", "sustainability", "urban farming", "community", "food security"],
+rewardTiers: [
+  {
+    title: "Garden Supporter",
+    minimumAmount: 50,  // Changed from 'amount'
+    description: "Monthly photo updates of garden progress + recipe booklet featuring rooftop-grown vegetables",
+    estimatedDelivery: "2025-03-15",  // Changed from 'deliveryDate'
+    maxBackers: 200,
+    isActive: true,
+    items: ["Monthly photo updates", "Recipe booklet"]
+  },
+  {
+    title: "Fresh Harvest Box",
+    minimumAmount: 150,  // Changed from 'amount'
+    description: "All previous rewards + monthly delivery of fresh vegetables from our rooftop gardens (3 months)",
+    estimatedDelivery: "2025-04-01",  // Changed from 'deliveryDate'
+    maxBackers: 75,
+    isActive: true,
+    items: ["Monthly photo updates", "Recipe booklet", "3-month vegetable delivery"]
+  },
+  {
+    title: "Garden Mentor",
+    minimumAmount: 500,  // Changed from 'amount'
+    description: "All previous rewards + personal rooftop garden consultation + exclusive workshop on urban farming techniques",
+    estimatedDelivery: "2025-05-01",  // Changed from 'deliveryDate'
+    maxBackers: 20,
+    isActive: true,
+    items: ["Monthly photo updates", "Recipe booklet", "Garden consultation", "Urban farming workshop"]
+  }
+]
+  });
+
+  const handleInputChange = (field, value) => {
+    if (field.includes('.')) {
+      const [parent, child] = field.split('.');
+      setFormData(prev => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent],
+          [child]: value
+        }
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    }
+  };
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    setSubmitMessage('');
+    
+    try {
+      const result = await createProject(formData).unwrap();
+      console.log('Project created successfully:', result);
+      setSubmitMessage('Project created successfully! Check the console for API response details.');
+      refetch(); // Refresh the creator's projects list
+    } catch (error) {
+      console.error('Failed to create project:', error);
+      setSubmitMessage(`Failed to create project: ${error?.data?.message || error?.message || 'Unknown error'}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const validateForm = () => {
+    if (!formData.title.trim()) return 'Title is required';
+    if (!formData.description.trim()) return 'Description is required';
+    if (!formData.shortDescription.trim()) return 'Short description is required';
+    if (formData.targetAmount < 1000) return 'Target amount must be at least 1,000 BDT';
+    if (new Date(formData.endDate) <= new Date(formData.startDate)) return 'End date must be after start date';
+    if (!formData.location.district.trim()) return 'District is required';
+    if (!formData.location.division.trim()) return 'Division is required';
+    return null;
+  };
+
+  const formError = validateForm();
+
+  return (
+    <div className="max-w-7xl mx-auto p-6 bg-gray-50 min-h-screen">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Creator Dashboard - API Test</h1>
+        <p className="text-gray-600">Testing project creation and retrieval for authenticated creator</p>
+      </div>
+      
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+        
+        {/* Creator Info & Projects Sidebar */}
+        <div className="xl:col-span-1">
+          <div className="bg-white border rounded-lg p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Creator Profile</h2>
+            <div className="space-y-3 text-sm">
+              <div>
+                <span className="font-medium text-gray-700">Creator ID:</span>
+                <div className="mt-1">
+                  <code className="bg-gray-100 px-2 py-1 rounded text-xs break-all">{creatorId}</code>
+                </div>
+              </div>
+              <div><span className="font-medium text-gray-700">Role:</span> <span className="text-green-600">Creator</span></div>
+              <div><span className="font-medium text-gray-700">Status:</span> <span className="text-green-600">Authenticated</span></div>
+            </div>
+          </div>
+
+          {/* Existing Projects */}
+          <div className="bg-white border rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Projects</h2>
+            
+            {fetchError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                <p className="text-red-700 text-sm">
+                  <span className="font-medium">API Error:</span><br/>
+                  {fetchError?.data?.message || fetchError?.message || 'Failed to load projects'}
+                </p>
+              </div>
+            )}
+
+            {projectsResponse ? (
+              <div className="space-y-3">
+                {projectsResponse.data && projectsResponse.data.length === 0 ? (
+                  <div className="text-center py-6">
+                    <div className="text-gray-400 text-3xl mb-2">📊</div>
+                    <p className="text-gray-500 text-sm">No projects yet</p>
+                    <p className="text-gray-400 text-xs">Create your first project</p>
+                  </div>
+                ) : (
+                  projectsResponse.data?.map((project, index) => (
+                    <div key={index} className="border rounded-lg p-3 bg-gray-50">
+                      <h3 className="font-medium text-gray-900 mb-1 text-sm">{project.title}</h3>
+                      <p className="text-xs text-gray-600 mb-2">{project.shortDescription}</p>
+                      <div className="flex flex-wrap gap-1 text-xs">
+                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                          {project.targetAmount?.toLocaleString()} BDT
+                        </span>
+                        <span className="bg-green-100 text-green-800 px-2 py-1 rounded">{project.status}</span>
+                        <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded">{project.category}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+                
+                {projectsResponse?.meta && (
+                  <div className="text-xs text-gray-500 pt-2 border-t">
+                    Total: {projectsResponse.meta.total} projects
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-6">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <span className="ml-2 text-gray-600 text-sm">Loading...</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Project Creation Form */}
+        <div className="xl:col-span-3">
+          <div className="bg-white border rounded-lg p-6">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-6">Create New Project</h2>
+            
+            <div className="space-y-6">
+              
+              {/* Basic Information */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Project Title</label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => handleInputChange('title', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter project title"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) => handleInputChange('category', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="education">Education</option>
+                    <option value="health">Health</option>
+                    <option value="environment">Environment</option>
+                    <option value="technology">Technology</option>
+                    <option value="arts">Arts</option>
+                    <option value="community">Community</option>
+                    <option value="business">Business</option>
+                    <option value="charity">Charity</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Short Description</label>
+                <textarea
+                  value={formData.shortDescription}
+                  onChange={(e) => handleInputChange('shortDescription', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows="2"
+                  placeholder="Brief project summary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Detailed Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows="3"
+                  placeholder="Full project description"
+                />
+              </div>
+
+              {/* Funding & Timeline */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Target Amount (BDT)</label>
+                  <input
+                    type="number"
+                    value={formData.targetAmount}
+                    onChange={(e) => handleInputChange('targetAmount', parseInt(e.target.value) || 0)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    min="1000"
+                    step="1000"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                  <input
+                    type="date"
+                    value={formData.startDate}
+                    onChange={(e) => handleInputChange('startDate', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                  <input
+                    type="date"
+                    value={formData.endDate}
+                    onChange={(e) => handleInputChange('endDate', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Location */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">District</label>
+                  <input
+                    type="text"
+                    value={formData.location.district}
+                    onChange={(e) => handleInputChange('location.district', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., Dhaka"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Division</label>
+                  <input
+                    type="text"
+                    value={formData.location.division}
+                    onChange={(e) => handleInputChange('location.division', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., Dhaka"
+                  />
+                </div>
+              </div>
+
+              {/* Project Story */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Project Story</label>
+                <textarea
+                  value={formData.story}
+                  onChange={(e) => handleInputChange('story', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows="4"
+                  placeholder="Tell your project's story..."
+                />
+              </div>
+
+              {/* Risks */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Risks & Mitigation</label>
+                <textarea
+                  value={formData.risks}
+                  onChange={(e) => handleInputChange('risks', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows="3"
+                  placeholder="Potential risks and how you'll address them..."
+                />
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+                <input
+                  type="text"
+                  value={formData.tags.join(', ')}
+                  onChange={(e) => handleInputChange('tags', e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="environment, sustainability, community (comma-separated)"
+                />
+              </div>
+
+              {/* Reward Tiers */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">Reward Tiers</label>
+                <div className="bg-gray-50 border rounded-lg p-4 space-y-3">
+                  {formData.rewardTiers.map((tier, index) => (
+                    <div key={index} className="bg-white border rounded-lg p-3">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-medium text-gray-900">{tier.title}</h4>
+                        <span className="bg-green-100 text-green-800 text-sm px-2 py-1 rounded">{tier.amount} BDT</span>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-2">{tier.description}</p>
+                      <div className="text-xs text-gray-500">
+                        Max: {tier.maxBackers} backers • Delivery: {tier.deliveryDate}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Submit Section */}
+              <div className="border-t pt-6">
+                {formError && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                    <p className="text-yellow-800 text-sm">{formError}</p>
+                  </div>
+                )}
+
+                {submitMessage && (
+                  <div className={`border rounded-lg p-4 mb-4 ${
+                    submitMessage.includes('successfully') 
+                      ? 'bg-green-50 border-green-200 text-green-800' 
+                      : 'bg-red-50 border-red-200 text-red-800'
+                  }`}>
+                    <p className="text-sm">{submitMessage}</p>
+                  </div>
+                )}
+
+                {createError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                    <p className="text-red-700 text-sm">
+                      <span className="font-medium">Create Project Error:</span><br/>
+                      {createError?.data?.message || createError?.message || 'Unknown error'}
+                    </p>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || isCreating || !!formError}
+                  className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting || isCreating ? (
+                    <span className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Creating Project...
+                    </span>
+                  ) : (
+                    'Create Project'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* API Testing Info */}
+          <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-blue-900 mb-2">API Testing Information</h3>
+            <div className="text-xs text-blue-800 space-y-1">
+              <div><span className="font-mono bg-white px-2 py-1 rounded">GET</span> /api/projects/creator/{creatorId}</div>
+              <div><span className="font-mono bg-white px-2 py-1 rounded">POST</span> /api/projects (with authentication)</div>
+              <div className="pt-2 text-blue-700">Check browser console for detailed API responses</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CreatorDashboardTest;

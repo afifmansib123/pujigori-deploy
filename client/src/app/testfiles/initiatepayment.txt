@@ -1,0 +1,258 @@
+// this is a test page 
+"use client"
+import React, { useState } from 'react';
+import { useInitiatePaymentMutation } from "@/state/api";
+
+const SimplePaymentTest = () => {
+  const [formData, setFormData] = useState({
+    projectId: '68c2c1b0a5a3afe2be892d4c', // Dummy project ID
+    amount: 100,
+    customerName: 'Test User',
+    customerEmail: 'test@example.com',
+    customerPhone: '01700000000',
+    customerAddress: 'Dhaka, Bangladesh',
+    isAnonymous: false,
+    message: 'Test payment'
+  });
+  
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+
+  const [initiatePayment, { isLoading }] = useInitiatePaymentMutation();
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setResult(null);
+  setError(null);
+
+  try {
+    const response = await initiatePayment(formData).unwrap();
+    setResult(response);
+    console.log('Payment initiated:', response);
+    
+    // Auto-redirect to payment gateway
+    if (response.data?.paymentGateway) {
+      window.open(response.data.paymentGateway, '_blank');
+      // Or for same window: window.location.href = response.data.paymentGateway;
+    }
+  } catch (err) {
+    setError(err);
+    console.error('Payment failed:', err);
+  }
+};
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto p-6 bg-gray-50 min-h-screen">
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Simple Payment Test</h1>
+      
+      <div className="bg-white rounded-lg shadow p-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          
+          {/* Project ID */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Project ID
+            </label>
+            <input
+              type="text"
+              value={formData.projectId}
+              onChange={(e) => handleInputChange('projectId', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          {/* Amount */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Amount (BDT)
+            </label>
+            <input
+              type="number"
+              value={formData.amount}
+              onChange={(e) => handleInputChange('amount', Number(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              min="10"
+              max="500000"
+              required
+            />
+          </div>
+
+          {/* Customer Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Customer Name
+            </label>
+            <input
+              type="text"
+              value={formData.customerName}
+              onChange={(e) => handleInputChange('customerName', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          {/* Customer Email */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Customer Email
+            </label>
+            <input
+              type="email"
+              value={formData.customerEmail}
+              onChange={(e) => handleInputChange('customerEmail', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          {/* Customer Phone */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Phone
+            </label>
+            <input
+              type="tel"
+              value={formData.customerPhone}
+              onChange={(e) => handleInputChange('customerPhone', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Address */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Address
+            </label>
+            <input
+              type="text"
+              value={formData.customerAddress}
+              onChange={(e) => handleInputChange('customerAddress', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Message */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Message
+            </label>
+            <textarea
+              value={formData.message}
+              onChange={(e) => handleInputChange('message', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows="2"
+            />
+          </div>
+
+          {/* Anonymous Checkbox */}
+          <div>
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={formData.isAnonymous}
+                onChange={(e) => handleInputChange('isAnonymous', e.target.checked)}
+                className="mr-2"
+              />
+              <span className="text-sm text-gray-700">Anonymous donation</span>
+            </label>
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? 'Testing...' : 'Test Initiate Payment'}
+          </button>
+        </form>
+
+        {/* Results */}
+        {result && (
+          <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-md">
+            <h3 className="font-medium text-green-800 mb-2">Success!</h3>
+            <div className="text-sm text-green-700 space-y-1">
+              <p><strong>Transaction ID:</strong> {result.data?.transactionId}</p>
+              <p><strong>Donation ID:</strong> {result.data?.donationId}</p>
+              <p><strong>Session Key:</strong> {result.data?.sessionKey}</p>
+              {result.data?.paymentGateway && (
+                <p>
+                  <strong>Payment Gateway:</strong> 
+                  <a 
+                    href={result.data.paymentGateway} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 underline ml-1"
+                  >
+                    Open Gateway
+                  </a>
+                </p>
+              )}
+            </div>
+            <details className="mt-3">
+              <summary className="cursor-pointer text-green-800 font-medium">Raw Response</summary>
+              <pre className="mt-2 text-xs bg-white p-2 rounded border overflow-x-auto">
+                {JSON.stringify(result, null, 2)}
+              </pre>
+            </details>
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-md">
+            <h3 className="font-medium text-red-800 mb-2">Error</h3>
+            <p className="text-sm text-red-700">{error.data?.message || error.message}</p>
+            <details className="mt-3">
+              <summary className="cursor-pointer text-red-800 font-medium">Raw Error</summary>
+              <pre className="mt-2 text-xs bg-white p-2 rounded border overflow-x-auto">
+                {JSON.stringify(error, null, 2)}
+              </pre>
+            </details>
+          </div>
+        )}
+      </div>
+
+      {/* Quick Test Data */}
+      <div className="mt-6 bg-white rounded-lg shadow p-4">
+        <h3 className="font-medium text-gray-900 mb-3">Quick Test Data</h3>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <button
+            onClick={() => setFormData(prev => ({
+              ...prev,
+              projectId: '67789a2bb2c123456789abcd',
+              amount: 50,
+              customerName: 'John Doe',
+              customerEmail: 'john@test.com'
+            }))}
+            className="p-2 bg-gray-100 rounded hover:bg-gray-200"
+          >
+            Load Test Data 1
+          </button>
+          <button
+            onClick={() => setFormData(prev => ({
+              ...prev,
+              projectId: '67789a2bb2c987654321dcba',
+              amount: 200,
+              customerName: 'Jane Smith',
+              customerEmail: 'jane@test.com',
+              isAnonymous: true
+            }))}
+            className="p-2 bg-gray-100 rounded hover:bg-gray-200"
+          >
+            Load Test Data 2
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default SimplePaymentTest;

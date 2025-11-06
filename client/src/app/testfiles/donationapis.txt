@@ -1,0 +1,1412 @@
+// thsi is a test page
+
+"use client"
+import React, { useState, useEffect } from 'react';
+import {
+  useGetDonationsQuery,
+  useGetDonationQuery,
+  useGetProjectDonationsQuery,
+  useGetUserDonationsQuery,
+  useGetRecentDonationsQuery,
+  useGetDonationQRQuery,
+  useRedeemRewardMutation,
+  useGetPendingRewardsQuery,
+  useGetDonationStatisticsQuery,
+  useUpdateDonorMessageMutation,
+  useGetTrendingProjectsQuery
+} from "@/state/api";
+
+const DonationAPITestWithRealData = () => {
+  const [activeTest, setActiveTest] = useState('donation-overview');
+  const [testInputs, setTestInputs] = useState({
+    // Real donation IDs from your MongoDB
+    donationId: '68d11f6ee6d335145031cc85', // Success donation with QR
+    pendingDonationId: '68d11768e1b886a5899a4d26', // Pending donation
+    norewardDonationId: '68d1252fb076f1aadb2ebe07', // No reward donation
+    
+    // Real project IDs
+    waterProjectId: '68ce8c5f2c240acdd7105198', // Water purifier project
+    gardenProjectId: '68ce8c5f2c240acdd7105198', // Garden project 
+    rooftopProjectId: '68c2c1b0a5a3afe2be892d4c', // Updated rooftop project
+    testProjectId: '68c2c1b0a5a3afe2be892d4c', // Project with confirmed donations (4 backers, BDT 1161)
+    
+    // Real user/creator IDs
+    tempUserId: 'temp-donor-id',
+    creatorId: '68ce87562c240acdd7105121',
+    
+    // Filtering parameters for getDonations
+    page: 1,
+    limit: 20,
+    status: 'success',
+    minAmount: '',
+    maxAmount: '',
+    startDate: '2024-12-01',
+    endDate: new Date().toISOString().split('T')[0],
+    hasReward: '',
+    sort: 'createdAt',
+    sortOrder: 'desc',
+    
+    // Project donations parameters
+    includeAnonymous: true,
+    
+    // Recent donations
+    recentLimit: 10,
+    
+    // QR parameters
+    qrFormat: 'url', // 'url' or 'base64'
+    
+    // Statistics parameters
+    groupBy: 'day', // 'day', 'week', 'month'
+    
+    // Reward redemption
+    redeemNotes: 'Reward redeemed via test interface - Fresh Harvest Box tier',
+    redeemedBy: 'test-admin',
+    
+    // Pending rewards filters
+    pendingMinValue: '',
+    pendingCreatedAfter: '',
+    
+    // Message update
+    donorMessage: 'Thank you for this amazing garden project! Looking forward to fresh vegetables and community impact.'
+  });
+
+  // Real project data from your MongoDB
+  const realProjects = {
+    waterProject: {
+      _id: "68a17a471de260e8e2f61563",
+      title: "Smart Water Purifier for Rural Bangladesh",
+      shortDescription: "Solar-powered water purifier for rural communities",
+      category: "health",
+      targetAmount: 150000,
+      currentAmount: 0,
+      status: "active",
+      rewardTiers: [
+        {
+          _id: "68a17a471de260e8e2f61564",
+          title: "Early Supporter",
+          minimumAmount: 500,
+          maxBackers: 200,
+          currentBackers: 0
+        },
+        {
+          _id: "68a17a471de260e8e2f61565", 
+          title: "Community Champion",
+          minimumAmount: 2500,
+          maxBackers: 60,
+          currentBackers: 0
+        },
+        {
+          _id: "68a17a471de260e8e2f61566",
+          title: "Water Hero", 
+          minimumAmount: 8000,
+          maxBackers: 25,
+          currentBackers: 0
+        }
+      ]
+    },
+    gardenProject: {
+      _id: "68ce8c5f2c240acdd7105198",
+      title: "Green Rooftop Gardens Initiative",
+      shortDescription: "Creating sustainable rooftop gardens in urban Dhaka for fresh vegetables and community income",
+      category: "environment",
+      targetAmount: 75000,
+      currentAmount: 142,
+      backerCount: 1,
+      status: "active",
+      rewardTiers: [
+        {
+          _id: "68ce8c5f2c240acdd7105199",
+          title: "Garden Supporter",
+          minimumAmount: 50,
+          maxBackers: 200,
+          currentBackers: 0
+        },
+        {
+          _id: "68ce8c5f2c240acdd710519a",
+          title: "Fresh Harvest Box",
+          minimumAmount: 150,
+          maxBackers: 75,
+          currentBackers: 1
+        },
+        {
+          _id: "68ce8c5f2c240acdd710519b",
+          title: "Garden Mentor",
+          minimumAmount: 500,
+          maxBackers: 20,
+          currentBackers: 0
+        }
+      ]
+    },
+    rooftopProject: {
+      _id: "68c2c1b0a5a3afe2be892d4c",
+      title: "Updated Project Title - 5:02:28 PM",
+      shortDescription: "Creating sustainable rooftop gardens in urban Dhaka for fresh vegetables and community income",
+      category: "environment",
+      targetAmount: 75000,
+      currentAmount: 1161,
+      backerCount: 4,
+      status: "active"
+    },
+    testProject: {
+      _id: "68c2c1b0a5a3afe2be892d4c",
+      title: "Updated Project Title - 5:02:28 PM",
+      shortDescription: "Creating sustainable rooftop gardens in urban Dhaka for fresh vegetables and community income",
+      category: "environment", 
+      targetAmount: 75000,
+      currentAmount: 1161,
+      adminFeeAmount: 58,
+      backerCount: 4,
+      status: "active",
+      rewardTiers: [
+        {
+          _id: "68c2c1b0a5a3afe2be892d4d",
+          title: "Garden Supporter",
+          minimumAmount: 50,
+          maxBackers: 200,
+          currentBackers: 0
+        },
+        {
+          _id: "68c2c1b0a5a3afe2be892d4e",
+          title: "Fresh Harvest Box",
+          minimumAmount: 150,
+          maxBackers: 75,
+          currentBackers: 0
+        },
+        {
+          _id: "68c2c1b0a5a3afe2be892d4f",
+          title: "Garden Mentor", 
+          minimumAmount: 500,
+          maxBackers: 20,
+          currentBackers: 0
+        }
+      ]
+    }
+  };
+
+  // Real donation samples from your data
+  const sampleDonations = [
+    {
+      _id: "68d11f6ee6d335145031cc85",
+      project: "68ce8c5f2c240acdd7105198",
+      amount: 150,
+      paymentStatus: "success",
+      transactionId: "PG_MFUYNIOZ_IH1QSH",
+      rewardTier: "68ce8c5f2c240acdd710519a",
+      rewardValue: 150,
+      rewardStatus: "pending",
+      isAnonymous: false,
+      message: "Testing payment flow",
+      donorInfo: { name: "Test User", email: "test@example.com" },
+      adminFee: 8,
+      netAmount: 142,
+      qrCodeUrl: "https://anewtestingbucketisbetter.s3.ap-southeast-1.amazonaws.com/qrcodes/1758535540206_e53fc103_donation-68d11f6ee6d335145031cc85-qr.png"
+    },
+    {
+      _id: "68d11768e1b886a5899a4d26",
+      project: "68ce8c5f2c240acdd7105198",
+      amount: 150,
+      paymentStatus: "pending",
+      transactionId: "PG_MFUXFHDS_50QBH5",
+      rewardTier: "68ce8c5f2c240acdd710519a",
+      rewardValue: 150,
+      rewardStatus: "pending",
+      isAnonymous: false,
+      message: "Testing payment flow"
+    },
+    {
+      _id: "68d1252fb076f1aadb2ebe07",
+      project: "68c2c1b0a5a3afe2be892d4c",
+      amount: 109,
+      paymentStatus: "success",
+      transactionId: "PG_MFUZJ2V8_SYK8OA",
+      rewardValue: 0,
+      rewardStatus: "pending",
+      isAnonymous: false,
+      message: "Test payment"
+    }
+  ];
+
+  // API Hooks with proper skip conditions
+  const { data: donationsData, error: donationsError, refetch: refetchDonations, isLoading: isDonationsLoading } = useGetDonationsQuery({
+    page: testInputs.page,
+    limit: testInputs.limit,
+    projectId: testInputs.waterProjectId || undefined,
+    status: testInputs.status || undefined,
+    minAmount: testInputs.minAmount ? Number(testInputs.minAmount) : undefined,
+    maxAmount: testInputs.maxAmount ? Number(testInputs.maxAmount) : undefined,
+    startDate: testInputs.startDate || undefined,
+    endDate: testInputs.endDate || undefined,
+    hasReward: testInputs.hasReward ? testInputs.hasReward === 'true' : undefined,
+    sort: testInputs.sort,
+    sortOrder: testInputs.sortOrder
+  });
+
+  const { data: singleDonationData, error: singleDonationError, refetch: refetchSingleDonation, isLoading: isSingleDonationLoading } = useGetDonationQuery(testInputs.donationId, {
+    skip: !testInputs.donationId
+  });
+
+  const { data: projectDonationsData, error: projectDonationsError, refetch: refetchProjectDonations, isLoading: isProjectDonationsLoading } = useGetProjectDonationsQuery({
+    projectId: testInputs.testProjectId,
+    page: testInputs.page,
+    limit: testInputs.limit,
+    status: testInputs.status,
+    includeAnonymous: testInputs.includeAnonymous
+  });
+
+  const { data: userDonationsData, error: userDonationsError, refetch: refetchUserDonations, isLoading: isUserDonationsLoading } = useGetUserDonationsQuery({
+    userId: testInputs.tempUserId,
+    page: testInputs.page,
+    limit: testInputs.limit,
+    status: testInputs.status
+  });
+
+  const { data: recentDonationsData, error: recentDonationsError, refetch: refetchRecentDonations, isLoading: isRecentDonationsLoading } = useGetRecentDonationsQuery({
+    limit: testInputs.recentLimit,
+    includeAnonymous: testInputs.includeAnonymous
+  });
+
+  const { data: qrData, error: qrError, refetch: refetchQR, isLoading: isQRLoading } = useGetDonationQRQuery({
+    id: testInputs.donationId,
+    format: testInputs.qrFormat
+  }, {
+    skip: !testInputs.donationId
+  });
+
+  const { data: pendingRewardsData, error: pendingRewardsError, refetch: refetchPendingRewards, isLoading: isPendingRewardsLoading } = useGetPendingRewardsQuery({
+    page: testInputs.page,
+    limit: testInputs.limit,
+    projectId: testInputs.gardenProjectId || undefined,
+    minValue: testInputs.pendingMinValue ? Number(testInputs.pendingMinValue) : undefined,
+    createdAfter: testInputs.pendingCreatedAfter || undefined
+  });
+
+  const { data: statisticsData, error: statisticsError, refetch: refetchStatistics, isLoading: isStatisticsLoading } = useGetDonationStatisticsQuery({
+    projectId: testInputs.gardenProjectId || undefined,
+    startDate: testInputs.startDate || undefined,
+    endDate: testInputs.endDate || undefined,
+    groupBy: testInputs.groupBy
+  });
+
+  // Get trending projects for testing
+  const { data: projectsData, error: projectsError } = useGetTrendingProjectsQuery({ limit: 10 });
+
+  // Mutations
+  const [redeemReward, { isLoading: isRedeemingReward, error: redeemError }] = useRedeemRewardMutation();
+  const [updateMessage, { isLoading: isUpdatingMessage, error: updateMessageError }] = useUpdateDonorMessageMutation();
+
+  const [results, setResults] = useState([]);
+  const [expandedResult, setExpandedResult] = useState(null);
+
+  // Load saved inputs from localStorage
+  useEffect(() => {
+    const savedInputs = localStorage.getItem('donation-api-test-inputs-real');
+    if (savedInputs) {
+      try {
+        setTestInputs(prev => ({ ...prev, ...JSON.parse(savedInputs) }));
+      } catch (e) {
+        console.error('Failed to load saved inputs:', e);
+      }
+    }
+  }, []);
+
+  // Save inputs to localStorage
+  useEffect(() => {
+    localStorage.setItem('donation-api-test-inputs-real', JSON.stringify(testInputs));
+  }, [testInputs]);
+
+  const addResult = (title, data, error = null, duration = null) => {
+    const result = {
+      timestamp: new Date().toISOString(),
+      title,
+      success: !error,
+      data: error ? null : data,
+      error: error?.data?.message || error?.message || error,
+      duration,
+      id: Math.random().toString(36).substr(2, 9)
+    };
+    setResults(prev => [result, ...prev.slice(0, 49)]);
+  };
+
+  const measureTime = (fn) => {
+    return async (...args) => {
+      const start = performance.now();
+      try {
+        const result = await fn(...args);
+        const duration = Math.round(performance.now() - start);
+        return { result, duration };
+      } catch (error) {
+        const duration = Math.round(performance.now() - start);
+        throw { error, duration };
+      }
+    };
+  };
+
+  // Test handlers
+  const handleTestGetDonations = async () => {
+    try {
+      const { result, duration } = await measureTime(refetchDonations)();
+      addResult('Get All Donations', result.data, null, duration);
+    } catch ({ error, duration }) {
+      addResult('Get All Donations', null, error, duration);
+    }
+  };
+
+  const handleTestGetSingleDonation = async () => {
+    if (!testInputs.donationId) {
+      addResult('Get Single Donation', null, 'Donation ID is required');
+      return;
+    }
+    try {
+      const { result, duration } = await measureTime(refetchSingleDonation)();
+      addResult('Get Single Donation', result.data, null, duration);
+    } catch ({ error, duration }) {
+      addResult('Get Single Donation', null, error, duration);
+    }
+  };
+
+  const handleTestProjectDonations = async () => {
+    try {
+      const { result, duration } = await measureTime(refetchProjectDonations)();
+      addResult('Get Project Donations', result.data, null, duration);
+    } catch ({ error, duration }) {
+      addResult('Get Project Donations', null, error, duration);
+    }
+  };
+
+  const handleTestUserDonations = async () => {
+    try {
+      const { result, duration } = await measureTime(refetchUserDonations)();
+      addResult('Get User Donations', result.data, null, duration);
+    } catch ({ error, duration }) {
+      addResult('Get User Donations', null, error, duration);
+    }
+  };
+
+  const handleTestRecentDonations = async () => {
+    try {
+      const { result, duration } = await measureTime(refetchRecentDonations)();
+      addResult('Get Recent Donations', result.data, null, duration);
+    } catch ({ error, duration }) {
+      addResult('Get Recent Donations', null, error, duration);
+    }
+  };
+
+  const handleTestDonationQR = async () => {
+    if (!testInputs.donationId) {
+      addResult('Get Donation QR', null, 'Donation ID is required');
+      return;
+    }
+    try {
+      const { result, duration } = await measureTime(refetchQR)();
+      addResult('Get Donation QR', result.data, null, duration);
+    } catch ({ error, duration }) {
+      addResult('Get Donation QR', null, error, duration);
+    }
+  };
+
+  const handleTestPendingRewards = async () => {
+    try {
+      const { result, duration } = await measureTime(refetchPendingRewards)();
+      addResult('Get Pending Rewards', result.data, null, duration);
+    } catch ({ error, duration }) {
+      addResult('Get Pending Rewards', null, error, duration);
+    }
+  };
+
+  const handleTestStatistics = async () => {
+    try {
+      const { result, duration } = await measureTime(refetchStatistics)();
+      addResult('Get Donation Statistics', result.data, null, duration);
+    } catch ({ error, duration }) {
+      addResult('Get Donation Statistics', null, error, duration);
+    }
+  };
+
+  const handleRedeemReward = async () => {
+    if (!testInputs.donationId) {
+      addResult('Redeem Reward', null, 'Donation ID is required');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to redeem this reward? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const start = performance.now();
+      const result = await redeemReward({
+        id: testInputs.donationId,
+        notes: testInputs.redeemNotes,
+        redeemedBy: testInputs.redeemedBy
+      }).unwrap();
+      const duration = Math.round(performance.now() - start);
+      addResult('Redeem Reward', result, null, duration);
+    } catch (error) {
+      addResult('Redeem Reward', null, error);
+    }
+  };
+
+  const handleUpdateMessage = async () => {
+    if (!testInputs.donationId) {
+      addResult('Update Donor Message', null, 'Donation ID is required');
+      return;
+    }
+
+    try {
+      const start = performance.now();
+      const result = await updateMessage({
+        id: testInputs.donationId,
+        message: testInputs.donorMessage
+      }).unwrap();
+      const duration = Math.round(performance.now() - start);
+      addResult('Update Donor Message', result, null, duration);
+    } catch (error) {
+      addResult('Update Donor Message', null, error);
+    }
+  };
+
+  const LoadingSpinner = () => (
+    <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+  );
+
+  const StatusIndicator = ({ data, error, isLoading }) => {
+    if (isLoading) return <span className="text-blue-600 text-xs">Loading...</span>;
+    if (error) return <span className="text-red-600 text-xs">Error</span>;
+    if (data) return <span className="text-green-600 text-xs">Loaded</span>;
+    return <span className="text-gray-400 text-xs">Not loaded</span>;
+  };
+
+  const testSections = [
+    {
+      id: 'donation-overview',
+      title: 'Donation Overview',
+      description: 'Your Real MongoDB Donation Data',
+      status: <span className="text-green-600 text-xs">Loaded</span>,
+      component: (
+        <div className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <h3 className="font-bold text-lg text-blue-800 mb-4">Real Projects in Your Database</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="bg-white p-4 rounded border">
+                <h4 className="font-medium text-green-700 mb-2">{realProjects.waterProject.title}</h4>
+                <p className="text-sm text-gray-600 mb-2">{realProjects.waterProject.shortDescription}</p>
+                <div className="text-xs text-gray-500">
+                  <div>Target: BDT {realProjects.waterProject.targetAmount.toLocaleString()}</div>
+                  <div>Current: BDT {realProjects.waterProject.currentAmount}</div>
+                  <div>Status: {realProjects.waterProject.status}</div>
+                  <div>ID: {realProjects.waterProject._id}</div>
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded border">
+                <h4 className="font-medium text-green-700 mb-2">{realProjects.testProject.title}</h4>
+                <p className="text-sm text-gray-600 mb-2">{realProjects.testProject.shortDescription}</p>
+                <div className="text-xs text-gray-500">
+                  <div>Target: BDT {realProjects.testProject.targetAmount.toLocaleString()}</div>
+                  <div>Current: BDT {realProjects.testProject.currentAmount} ({realProjects.testProject.backerCount} backers)</div>
+                  <div>Admin Fee: BDT {realProjects.testProject.adminFeeAmount}</div>
+                  <div>Status: {realProjects.testProject.status}</div>
+                  <div className="text-green-600 font-medium">✓ HAS DONATIONS</div>
+                  <div>ID: {realProjects.testProject._id}</div>
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded border">
+                <h4 className="font-medium text-green-700 mb-2">{realProjects.gardenProject.title}</h4>
+                <p className="text-sm text-gray-600 mb-2">{realProjects.gardenProject.shortDescription}</p>
+                <div className="text-xs text-gray-500">
+                  <div>Target: BDT {realProjects.gardenProject.targetAmount.toLocaleString()}</div>
+                  <div>Current: BDT {realProjects.gardenProject.currentAmount} ({realProjects.gardenProject.backerCount} backers)</div>
+                  <div>Status: {realProjects.gardenProject.status}</div>
+                  <div>ID: {realProjects.gardenProject._id}</div>
+                </div>
+              </div>
+            </div>
+
+            <h4 className="font-medium text-blue-800 mb-3">Sample Donations from Your Database</h4>
+            <div className="space-y-3">
+              {sampleDonations.map(donation => (
+                <div key={donation._id} className="bg-white p-3 rounded border text-sm">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="font-medium">BDT {donation.amount}</span>
+                    <span className={`px-2 py-1 rounded text-xs ${
+                      donation.paymentStatus === 'success' 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {donation.paymentStatus}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-600 space-y-1">
+                    <div>ID: {donation._id}</div>
+                    <div>Transaction: {donation.transactionId}</div>
+                    <div>Reward Value: BDT {donation.rewardValue}</div>
+                    {donation.qrCodeUrl && <div className="text-green-600">✓ Has QR Code</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-green-50 border border-green-200 rounded p-4">
+            <h4 className="font-medium text-green-800 mb-2">API Project Detection:</h4>
+            {projectsData ? (
+              <div className="text-sm text-green-700">
+                <p>✅ Found {projectsData.data?.length || 0} projects from trending API</p>
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-blue-600">Show available projects</summary>
+                  <div className="mt-2 text-xs space-y-1">
+                    {projectsData.data?.slice(0, 5).map(p => (
+                      <div key={p._id}>{p.title} - BDT {p.currentAmount}/{p.targetAmount}</div>
+                    ))}
+                  </div>
+                </details>
+              </div>
+            ) : projectsError ? (
+              <p className="text-sm text-red-700">❌ Error loading projects: {projectsError?.data?.message || 'Unknown error'}</p>
+            ) : (
+              <p className="text-sm text-blue-700">🔄 Loading projects from API...</p>
+            )}
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'get-donations',
+      title: 'Get All Donations',
+      description: 'GET /api/donations',
+      status: <StatusIndicator data={donationsData} error={donationsError} isLoading={isDonationsLoading} />,
+      component: (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Status:</label>
+              <select
+                value="success"
+                onChange={(e) => setTestInputs(prev => ({ ...prev, status: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              >
+                <option value="success">Success Only</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">Fixed to success for testing</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Payment Status:</label>
+              <select
+                value={testInputs.status}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, status: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              >
+                <option value="">All Status</option>
+                <option value="success">Success</option>
+                <option value="pending">Pending</option>
+                <option value="failed">Failed</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Min Amount (BDT):</label>
+              <input
+                type="number"
+                value={testInputs.minAmount}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, minAmount: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+                placeholder="e.g. 100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Max Amount (BDT):</label>
+              <input
+                type="number"
+                value={testInputs.maxAmount}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, maxAmount: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+                placeholder="e.g. 5000"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Start Date:</label>
+              <input
+                type="date"
+                value={testInputs.startDate}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, startDate: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">End Date:</label>
+              <input
+                type="date"
+                value={testInputs.endDate}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, endDate: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Has Reward:</label>
+              <select
+                value={testInputs.hasReward}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, hasReward: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              >
+                <option value="">All</option>
+                <option value="true">With Reward</option>
+                <option value="false">Without Reward</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Page:</label>
+              <input
+                type="number"
+                value={testInputs.page}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, page: Number(e.target.value) }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+                min="1"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Limit:</label>
+              <select
+                value={testInputs.limit}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, limit: Number(e.target.value) }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              >
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+          </div>
+
+          <button
+            onClick={handleTestGetDonations}
+            disabled={isDonationsLoading}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isDonationsLoading && <LoadingSpinner />}
+            Test Get All Donations
+          </button>
+
+          {donationsData && (
+            <div className="bg-gray-50 p-4 rounded">
+              <h4 className="font-medium mb-2">Current Data:</h4>
+              <p className="text-sm text-gray-600">
+                Found {donationsData?.data?.length || 0} donations
+              </p>
+              <p className="text-xs text-gray-500">
+                Total pages: {donationsData?.meta?.totalPages} | 
+                Total items: {donationsData?.meta?.totalItems}
+              </p>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'get-donation',
+      title: 'Get Single Donation',
+      description: 'GET /api/donations/:id',
+      status: <StatusIndicator data={singleDonationData} error={singleDonationError} isLoading={isSingleDonationLoading} />,
+      component: (
+        <div className="space-y-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-4">
+            <p className="text-yellow-800 text-sm">
+              Testing with real donation ID: <strong>{testInputs.donationId}</strong>
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Donation ID:</label>
+            <select
+              value={testInputs.donationId}
+              onChange={(e) => setTestInputs(prev => ({ ...prev, donationId: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+            >
+              <option value={sampleDonations[0]._id}>Success Donation (with QR) - BDT 150</option>
+              <option value={sampleDonations[1]._id}>Pending Donation - BDT 150</option>
+              <option value={sampleDonations[2]._id}>Success (No Reward) - BDT 109</option>
+            </select>
+          </div>
+
+          <button
+            onClick={handleTestGetSingleDonation}
+            disabled={isSingleDonationLoading}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isSingleDonationLoading && <LoadingSpinner />}
+            Test Get Single Donation
+          </button>
+
+          {singleDonationData && (
+            <div className="bg-gray-50 p-4 rounded">
+              <h4 className="font-medium mb-2">Current Data:</h4>
+              <p className="text-sm text-gray-600">
+                Amount: BDT {singleDonationData?.data?.amount} | 
+                Status: {singleDonationData?.data?.paymentStatus}
+              </p>
+              <p className="text-xs text-gray-500">
+                Reward Value: BDT {singleDonationData?.data?.rewardValue || 0} |
+                Transaction: {singleDonationData?.data?.transactionId}
+              </p>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'project-donations',
+      title: 'Project Donations',
+      description: 'GET /api/donations/project/:projectId',
+      status: <StatusIndicator data={projectDonationsData} error={projectDonationsError} isLoading={isProjectDonationsLoading} />,
+      component: (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Select Project:</label>
+            <select
+              value={testInputs.testProjectId}
+              onChange={(e) => setTestInputs(prev => ({ ...prev, testProjectId: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+            >
+              <option value={realProjects.testProject._id}>Test Project (4 backers - BDT 1,161) ⭐</option>
+              <option value={realProjects.waterProject._id}>Water Purifier Project</option>
+              <option value={realProjects.gardenProject._id}>Garden Initiative</option>
+              <option value={realProjects.rooftopProject._id}>Rooftop Project</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Status:</label>
+              <select
+                value={testInputs.status}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, status: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              >
+                <option value="success">Success</option>
+                <option value="pending">Pending</option>
+                <option value="">All Status</option>
+              </select>
+            </div>
+            <div>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={testInputs.includeAnonymous}
+                  onChange={(e) => setTestInputs(prev => ({ ...prev, includeAnonymous: e.target.checked }))}
+                  className="mr-2"
+                />
+                Include Anonymous
+              </label>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Limit:</label>
+              <select
+                value={testInputs.limit}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, limit: Number(e.target.value) }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              >
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+          </div>
+
+          <button
+            onClick={handleTestProjectDonations}
+            disabled={isProjectDonationsLoading}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isProjectDonationsLoading && <LoadingSpinner />}
+            Test Get Project Donations
+          </button>
+
+          {projectDonationsData && (
+            <div className="bg-gray-50 p-4 rounded">
+              <h4 className="font-medium mb-2">Current Data:</h4>
+              <p className="text-sm text-gray-600">
+                Found {projectDonationsData?.data?.length || 0} donations for this project
+              </p>
+              <p className="text-xs text-gray-500">
+                Page {projectDonationsData?.meta?.currentPage} of {projectDonationsData?.meta?.totalPages}
+              </p>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'user-donations',
+      title: 'User Donations',
+      description: 'GET /api/donations/user/:userId',
+      status: <StatusIndicator data={userDonationsData} error={userDonationsError} isLoading={isUserDonationsLoading} />,
+      component: (
+        <div className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
+            <p className="text-blue-800 text-sm">
+              Testing with user ID: <strong>{testInputs.tempUserId}</strong>
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">User ID:</label>
+              <input
+                type="text"
+                value={testInputs.tempUserId}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, tempUserId: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+                placeholder="Enter user ID"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Status Filter:</label>
+              <select
+                value={testInputs.status}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, status: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              >
+                <option value="">All Status</option>
+                <option value="success">Success</option>
+                <option value="pending">Pending</option>
+                <option value="failed">Failed</option>
+              </select>
+            </div>
+          </div>
+
+          <button
+            onClick={handleTestUserDonations}
+            disabled={isUserDonationsLoading}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isUserDonationsLoading && <LoadingSpinner />}
+            Test Get User Donations
+          </button>
+
+          {userDonationsData && (
+            <div className="bg-gray-50 p-4 rounded">
+              <h4 className="font-medium mb-2">Current Data:</h4>
+              <p className="text-sm text-gray-600">
+                Found {userDonationsData?.data?.length || 0} donations by this user
+              </p>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'recent-donations',
+      title: 'Recent Donations',
+      description: 'GET /api/donations/recent',
+      status: <StatusIndicator data={recentDonationsData} error={recentDonationsError} isLoading={isRecentDonationsLoading} />,
+      component: (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Limit:</label>
+              <select
+                value={testInputs.recentLimit}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, recentLimit: Number(e.target.value) }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              >
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+            <div>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={testInputs.includeAnonymous}
+                  onChange={(e) => setTestInputs(prev => ({ ...prev, includeAnonymous: e.target.checked }))}
+                  className="mr-2"
+                />
+                Include Anonymous Donations
+              </label>
+            </div>
+          </div>
+
+          <button
+            onClick={handleTestRecentDonations}
+            disabled={isRecentDonationsLoading}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isRecentDonationsLoading && <LoadingSpinner />}
+            Test Get Recent Donations
+          </button>
+
+          {recentDonationsData && (
+            <div className="bg-gray-50 p-4 rounded">
+              <h4 className="font-medium mb-2">Current Data:</h4>
+              <p className="text-sm text-gray-600">
+                Found {recentDonationsData?.data?.length || 0} recent donations
+              </p>
+              <div className="text-xs text-gray-500 mt-2">
+                {recentDonationsData?.data?.slice(0, 3).map(donation => (
+                  <div key={donation._id}>
+                    BDT {donation.amount} - {donation.donorDisplayName} ({new Date(donation.createdAt).toLocaleDateString()})
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'donation-qr',
+      title: 'Donation QR Code',
+      description: 'GET /api/donations/:id/qr',
+      status: <StatusIndicator data={qrData} error={qrError} isLoading={isQRLoading} />,
+      component: (
+        <div className="space-y-4">
+          <div className="bg-green-50 border border-green-200 rounded p-3 mb-4">
+            <p className="text-green-800 text-sm font-medium">
+              Testing with donation that has QR code: <strong>{testInputs.donationId}</strong>
+            </p>
+            <p className="text-green-700 text-xs mt-1">
+              This donation has reward value of BDT 150 and should have a QR code
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Donation ID:</label>
+              <select
+                value={testInputs.donationId}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, donationId: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              >
+                <option value={sampleDonations[0]._id}>Success with QR - BDT 150</option>
+                <option value={sampleDonations[1]._id}>Pending Donation - BDT 150</option>
+                <option value={sampleDonations[2]._id}>No Reward - BDT 109</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Format:</label>
+              <select
+                value={testInputs.qrFormat}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, qrFormat: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              >
+                <option value="url">URL (S3 Link)</option>
+                <option value="base64">Base64 Data</option>
+              </select>
+            </div>
+          </div>
+
+          <button
+            onClick={handleTestDonationQR}
+            disabled={isQRLoading}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isQRLoading && <LoadingSpinner />}
+            Test Get Donation QR
+          </button>
+
+          {qrData && (
+            <div className="bg-gray-50 p-4 rounded">
+              <h4 className="font-medium mb-2">Current Data:</h4>
+              <p className="text-sm text-gray-600">
+                Format: {qrData?.data?.format} | 
+                Reward Value: BDT {qrData?.data?.rewardValue}
+              </p>
+              {qrData?.data?.qrCodeUrl && (
+                <div className="mt-2">
+                  <a 
+                    href={qrData.data.qrCodeUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline text-xs break-all"
+                  >
+                    {qrData.data.qrCodeUrl}
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'pending-rewards',
+      title: 'Pending Rewards',
+      description: 'GET /api/donations/rewards/pending',
+      status: <StatusIndicator data={pendingRewardsData} error={pendingRewardsError} isLoading={isPendingRewardsLoading} />,
+      component: (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Project Filter:</label>
+              <select
+                value={testInputs.gardenProjectId}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, gardenProjectId: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              >
+                <option value="">All Projects</option>
+                <option value={realProjects.waterProject._id}>Water Purifier</option>
+                <option value={realProjects.gardenProject._id}>Garden Initiative</option>
+                <option value={realProjects.rooftopProject._id}>Rooftop Project</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Min Reward Value:</label>
+              <input
+                type="number"
+                value={testInputs.pendingMinValue}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, pendingMinValue: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+                placeholder="e.g. 100"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Created After:</label>
+            <input
+              type="date"
+              value={testInputs.pendingCreatedAfter}
+              onChange={(e) => setTestInputs(prev => ({ ...prev, pendingCreatedAfter: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+            />
+          </div>
+
+          <button
+            onClick={handleTestPendingRewards}
+            disabled={isPendingRewardsLoading}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isPendingRewardsLoading && <LoadingSpinner />}
+            Test Get Pending Rewards
+          </button>
+
+          {pendingRewardsData && (
+            <div className="bg-gray-50 p-4 rounded">
+              <h4 className="font-medium mb-2">Current Data:</h4>
+              <p className="text-sm text-gray-600">
+                Found {pendingRewardsData?.data?.length || 0} pending rewards
+              </p>
+              <div className="text-xs text-gray-500 mt-2">
+                {pendingRewardsData?.data?.slice(0, 3).map(reward => (
+                  <div key={reward._id}>
+                    BDT {reward.rewardValue} - {reward.donorDisplayName}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'donation-statistics',
+      title: 'Donation Statistics',
+      description: 'GET /api/donations/statistics',
+      status: <StatusIndicator data={statisticsData} error={statisticsError} isLoading={isStatisticsLoading} />,
+      component: (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Project Filter:</label>
+              <select
+                value={testInputs.gardenProjectId}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, gardenProjectId: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              >
+                <option value="">All Projects</option>
+                <option value={realProjects.waterProject._id}>Water Purifier</option>
+                <option value={realProjects.gardenProject._id}>Garden Initiative</option>
+                <option value={realProjects.rooftopProject._id}>Rooftop Project</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Group By:</label>
+              <select
+                value={testInputs.groupBy}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, groupBy: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              >
+                <option value="day">Daily</option>
+                <option value="week">Weekly</option>
+                <option value="month">Monthly</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Start Date:</label>
+              <input
+                type="date"
+                value={testInputs.startDate}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, startDate: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">End Date:</label>
+              <input
+                type="date"
+                value={testInputs.endDate}
+                onChange={(e) => setTestInputs(prev => ({ ...prev, endDate: e.target.value }))}
+                className="w-full border border-gray-300 rounded px-3 py-2"
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={handleTestStatistics}
+            disabled={isStatisticsLoading}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isStatisticsLoading && <LoadingSpinner />}
+            Test Get Donation Statistics
+          </button>
+
+          {statisticsData && (
+            <div className="bg-gray-50 p-4 rounded">
+              <h4 className="font-medium mb-2">Current Data:</h4>
+              <p className="text-sm text-gray-600">
+                Total Amount: BDT {statisticsData?.data?.overview?.totalAmount || 0} |
+                Count: {statisticsData?.data?.overview?.donationCount || 0}
+              </p>
+              <p className="text-xs text-gray-500">
+                Avg: BDT {Math.round(statisticsData?.data?.overview?.averageDonation || 0)} |
+                Time Series: {statisticsData?.data?.timeSeries?.length || 0} points
+              </p>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'redeem-reward',
+      title: 'Redeem Reward',
+      description: 'POST /api/donations/:id/redeem',
+      status: null,
+      component: (
+        <div className="space-y-4">
+          <div className="bg-red-50 border border-red-200 rounded p-3 mb-4">
+            <p className="text-red-800 text-sm font-medium">
+              ⚠️ Warning: This will mark the reward as redeemed!
+            </p>
+            <p className="text-red-700 text-xs mt-1">
+              Testing with donation ID: {testInputs.donationId} (BDT 150 reward)
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Donation ID:</label>
+            <select
+              value={testInputs.donationId}
+              onChange={(e) => setTestInputs(prev => ({ ...prev, donationId: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+            >
+              <option value={sampleDonations[0]._id}>Success with Reward - BDT 150</option>
+              <option value={sampleDonations[1]._id}>Pending Donation - BDT 150</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Redemption Notes:</label>
+            <textarea
+              value={testInputs.redeemNotes}
+              onChange={(e) => setTestInputs(prev => ({ ...prev, redeemNotes: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              rows="3"
+              placeholder="Enter notes about the reward redemption..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Redeemed By:</label>
+            <input
+              type="text"
+              value={testInputs.redeemedBy}
+              onChange={(e) => setTestInputs(prev => ({ ...prev, redeemedBy: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              placeholder="Admin/Staff name"
+            />
+          </div>
+
+          <button
+            onClick={handleRedeemReward}
+            disabled={isRedeemingReward}
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isRedeemingReward && <LoadingSpinner />}
+            {isRedeemingReward ? 'Redeeming...' : 'Test Redeem Reward'}
+          </button>
+
+          {redeemError && (
+            <div className="bg-red-50 p-4 rounded">
+              <p className="text-red-700 text-sm">{redeemError?.data?.message || 'Error redeeming reward'}</p>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'update-message',
+      title: 'Update Donor Message',
+      description: 'POST /api/donations/:id/message',
+      status: null,
+      component: (
+        <div className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
+            <p className="text-blue-800 text-sm">
+              Testing message update for donation: <strong>{testInputs.donationId}</strong>
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Donation ID:</label>
+            <select
+              value={testInputs.donationId}
+              onChange={(e) => setTestInputs(prev => ({ ...prev, donationId: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+            >
+              {sampleDonations.map(donation => (
+                <option key={donation._id} value={donation._id}>
+                  {donation.paymentStatus} - BDT {donation.amount} (Current: "{donation.message}")
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">New Message (max 500 chars):</label>
+            <textarea
+              value={testInputs.donorMessage}
+              onChange={(e) => setTestInputs(prev => ({ ...prev, donorMessage: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              rows="4"
+              maxLength="500"
+              placeholder="Enter updated donor message..."
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              {testInputs.donorMessage.length}/500 characters
+            </p>
+          </div>
+
+          <button
+            onClick={handleUpdateMessage}
+            disabled={isUpdatingMessage}
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isUpdatingMessage && <LoadingSpinner />}
+            {isUpdatingMessage ? 'Updating...' : 'Test Update Message'}
+          </button>
+
+          {updateMessageError && (
+            <div className="bg-red-50 p-4 rounded">
+              <p className="text-red-700 text-sm">{updateMessageError?.data?.message || 'Error updating message'}</p>
+            </div>
+          )}
+        </div>
+      )
+    }
+  ];
+
+  return (
+    <div className="max-w-7xl mx-auto p-6 bg-gray-50 min-h-screen">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Donation API Test Suite - REAL API CALLS</h1>
+        <p className="text-gray-600">Testing with actual network requests to your donation API using real MongoDB data</p>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {testSections.map((section) => (
+            <button
+              key={section.id}
+              onClick={() => setActiveTest(section.id)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200
+                ${activeTest === section.id
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                }`}
+            >
+              {section.title}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* API Test Controls */}
+        <div className="md:col-span-2 bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-2xl font-semibold text-gray-800 mb-4">
+            {testSections.find(s => s.id === activeTest)?.title}
+            <span className="ml-2 text-sm text-gray-500 font-normal">
+              {testSections.find(s => s.id === activeTest)?.description}
+            </span>
+          </h2>
+          <div className="mb-6">
+            {testSections.find(s => s.id === activeTest)?.component}
+          </div>
+        </div>
+
+        {/* Results Panel */}
+        <div className="md:col-span-1 bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center justify-between">
+            API Call Results
+            <button
+              onClick={() => setResults([])}
+              className="text-red-500 hover:text-red-700 text-sm font-normal"
+            >
+              Clear
+            </button>
+          </h2>
+          <div className="space-y-3 max-h-[calc(100vh-250px)] overflow-y-auto">
+            {results.length === 0 ? (
+              <p className="text-gray-500 text-sm">No API calls made yet. Results will appear here.</p>
+            ) : (
+              results.map((result) => (
+                <div
+                  key={result.id}
+                  className={`border rounded-lg p-3 cursor-pointer transition-all duration-200
+                    ${result.success ? 'border-green-300 bg-green-50 hover:bg-green-100' : 'border-red-300 bg-red-50 hover:bg-red-100'}
+                  `}
+                  onClick={() => setExpandedResult(expandedResult?.id === result.id ? null : result)}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="font-medium text-gray-900">{result.title}</span>
+                      <span className={`ml-2 text-xs font-semibold ${result.success ? 'text-green-700' : 'text-red-700'}`}>
+                        {result.success ? 'SUCCESS' : 'FAILED'}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      {result.duration !== null && (
+                        <span className="text-xs text-gray-500">{result.duration}ms</span>
+                      )}
+                      <div className="text-xs text-gray-400">{new Date(result.timestamp).toLocaleTimeString()}</div>
+                    </div>
+                  </div>
+                  {expandedResult?.id === result.id && (
+                    <pre className="mt-2 text-xs text-gray-700 bg-gray-100 p-2 rounded overflow-x-auto whitespace-pre-wrap">
+                      {result.success ? JSON.stringify(result.data, null, 2) : result.error ? JSON.stringify(result.error, null, 2) : 'No error details'}
+                    </pre>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default DonationAPITestWithRealData;

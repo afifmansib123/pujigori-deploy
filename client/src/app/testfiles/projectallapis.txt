@@ -1,0 +1,806 @@
+"use client"
+import React, { useState, useEffect } from 'react';
+import { 
+  useGetTrendingProjectsQuery,
+  useGetProjectsByCategoryQuery,
+  useGetProjectQuery,
+  useUpdateProjectMutation,
+  useDeleteProjectMutation,
+  useGetProjectUpdatesQuery,
+  useAddProjectUpdateMutation,
+  useGetProjectStatsQuery,
+  useGetProjectsByCreatorQuery
+} from "@/state/api";
+
+const ProjectAPITest = () => {
+  const [activeTest, setActiveTest] = useState('trending');
+  const [testInputs, setTestInputs] = useState({
+    projectSlug: '',
+    projectId: '',
+    creatorId: 'e93ef468-70b1-7055-5e1d-ef5321388108',
+    updateTitle: 'Test Update',
+    updateContent: 'This is a test project update to verify the API functionality.',
+    updateImages: []
+  });
+
+  // API Hooks with loading states
+  const { data: trendingData, error: trendingError, refetch: refetchTrending, isLoading: isTrendingLoading } = useGetTrendingProjectsQuery({ limit: 6 });
+  const { data: categoriesData, error: categoriesError, refetch: refetchCategories, isLoading: isCategoriesLoading } = useGetProjectsByCategoryQuery();
+  const { data: projectData, error: projectError, refetch: refetchProject, isLoading: isProjectLoading } = useGetProjectQuery(testInputs.projectSlug, {
+    skip: !testInputs.projectSlug
+  });
+  const { data: updatesData, error: updatesError, refetch: refetchUpdates, isLoading: isUpdatesLoading } = useGetProjectUpdatesQuery(testInputs.projectId, {
+    skip: !testInputs.projectId
+  });
+  const { data: statsData, error: statsError, refetch: refetchStats, isLoading: isStatsLoading } = useGetProjectStatsQuery(testInputs.projectId, {
+    skip: !testInputs.projectId
+  });
+  const { data: creatorProjectsData, error: creatorProjectsError, refetch: refetchCreatorProjects, isLoading: isCreatorProjectsLoading } = useGetProjectsByCreatorQuery({
+    creatorId: testInputs.creatorId,
+    page: 1,
+    limit: 10
+  });
+
+  // Mutations
+  const [updateProject, { isLoading: isUpdating, error: updateError }] = useUpdateProjectMutation();
+  const [deleteProject, { isLoading: isDeleting, error: deleteError }] = useDeleteProjectMutation();
+  const [addUpdate, { isLoading: isAddingUpdate, error: addUpdateError }] = useAddProjectUpdateMutation();
+
+  const [results, setResults] = useState([]);
+  const [expandedResult, setExpandedResult] = useState(null);
+
+  // Load saved inputs from localStorage
+  useEffect(() => {
+    const savedInputs = localStorage.getItem('project-api-test-inputs');
+    if (savedInputs) {
+      try {
+        setTestInputs(prev => ({ ...prev, ...JSON.parse(savedInputs) }));
+      } catch (e) {
+        console.error('Failed to load saved inputs:', e);
+      }
+    }
+  }, []);
+
+  // Save inputs to localStorage
+  useEffect(() => {
+    localStorage.setItem('project-api-test-inputs', JSON.stringify(testInputs));
+  }, [testInputs]);
+
+  const addResult = (title, data, error = null, duration = null) => {
+    const result = {
+      timestamp: new Date().toISOString(),
+      title,
+      success: !error,
+      data: error ? null : data,
+      error: error?.data?.message || error?.message || error,
+      duration,
+      id: Math.random().toString(36).substr(2, 9)
+    };
+    setResults(prev => [result, ...prev.slice(0, 49)]); // Keep only last 50 results
+  };
+
+  const measureTime = (fn) => {
+    return async (...args) => {
+      const start = performance.now();
+      try {
+        const result = await fn(...args);
+        const duration = Math.round(performance.now() - start);
+        return { result, duration };
+      } catch (error) {
+        const duration = Math.round(performance.now() - start);
+        throw { error, duration };
+      }
+    };
+  };
+
+  const handleTestTrending = async () => {
+    try {
+      const { result, duration } = await measureTime(refetchTrending)();
+      addResult('Get Trending Projects', result.data, null, duration);
+    } catch ({ error, duration }) {
+      addResult('Get Trending Projects', null, error, duration);
+    }
+  };
+
+  const handleTestCategories = async () => {
+    try {
+      const { result, duration } = await measureTime(refetchCategories)();
+      addResult('Get Projects by Category', result.data, null, duration);
+    } catch ({ error, duration }) {
+      addResult('Get Projects by Category', null, error, duration);
+    }
+  };
+
+  const handleTestProject = async () => {
+    if (!testInputs.projectSlug) {
+      addResult('Get Single Project', null, 'Project slug is required');
+      return;
+    }
+    try {
+      const { result, duration } = await measureTime(refetchProject)();
+      addResult('Get Single Project', result.data, null, duration);
+    } catch ({ error, duration }) {
+      addResult('Get Single Project', null, error, duration);
+    }
+  };
+
+  const handleTestCreatorProjects = async () => {
+    try {
+      const { result, duration } = await measureTime(refetchCreatorProjects)();
+      addResult('Get Creator Projects', result.data, null, duration);
+    } catch ({ error, duration }) {
+      addResult('Get Creator Projects', null, error, duration);
+    }
+  };
+
+  const handleTestUpdates = async () => {
+    if (!testInputs.projectId) {
+      addResult('Get Project Updates', null, 'Project ID is required');
+      return;
+    }
+    try {
+      const { result, duration } = await measureTime(refetchUpdates)();
+      addResult('Get Project Updates', result.data, null, duration);
+    } catch ({ error, duration }) {
+      addResult('Get Project Updates', null, error, duration);
+    }
+  };
+
+  const handleTestStats = async () => {
+    if (!testInputs.projectId) {
+      addResult('Get Project Stats', null, 'Project ID is required');
+      return;
+    }
+    try {
+      const { result, duration } = await measureTime(refetchStats)();
+      addResult('Get Project Stats', result.data, null, duration);
+    } catch ({ error, duration }) {
+      addResult('Get Project Stats', null, error, duration);
+    }
+  };
+
+  const handleAddUpdate = async () => {
+    if (!testInputs.projectId || !testInputs.updateTitle || !testInputs.updateContent) {
+      addResult('Add Project Update', null, 'Project ID, title, and content are required');
+      return;
+    }
+    try {
+      const start = performance.now();
+      const result = await addUpdate({
+        id: testInputs.projectId,
+        data: {
+          title: testInputs.updateTitle,
+          content: testInputs.updateContent,
+          images: testInputs.updateImages || []
+        }
+      }).unwrap();
+      const duration = Math.round(performance.now() - start);
+      addResult('Add Project Update', result, null, duration);
+    } catch (error) {
+      addResult('Add Project Update', null, error);
+    }
+  };
+
+  const handleUpdateProject = async () => {
+    if (!testInputs.projectId) {
+      addResult('Update Project', null, 'Project ID is required');
+      return;
+    }
+    try {
+      const start = performance.now();
+      const result = await updateProject({
+        id: testInputs.projectId,
+        data: {
+          title: 'Updated Project Title - ' + new Date().toLocaleTimeString(),
+          description: 'This project has been updated via API test at ' + new Date().toISOString()
+        }
+      }).unwrap();
+      const duration = Math.round(performance.now() - start);
+      addResult('Update Project', result, null, duration);
+    } catch (error) {
+      addResult('Update Project', null, error);
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!testInputs.projectId) {
+      addResult('Delete Project', null, 'Project ID is required');
+      return;
+    }
+    if (!confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
+      return;
+    }
+    try {
+      const start = performance.now();
+      const result = await deleteProject(testInputs.projectId).unwrap();
+      const duration = Math.round(performance.now() - start);
+      addResult('Delete Project', result, null, duration);
+    } catch (error) {
+      addResult('Delete Project', null, error);
+    }
+  };
+
+  const LoadingSpinner = () => (
+    <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+  );
+
+  const StatusIndicator = ({ data, error, isLoading }) => {
+    if (isLoading) return <span className="text-blue-600 text-xs">Loading...</span>;
+    if (error) return <span className="text-red-600 text-xs">Error</span>;
+    if (data) return <span className="text-green-600 text-xs">Loaded</span>;
+    return <span className="text-gray-400 text-xs">Not loaded</span>;
+  };
+
+  const testSections = [
+    {
+      id: 'trending',
+      title: 'Trending Projects',
+      description: 'GET /api/projects/trending',
+      status: <StatusIndicator data={trendingData} error={trendingError} isLoading={isTrendingLoading} />,
+      component: (
+        <div className="space-y-4">
+          <button
+            onClick={handleTestTrending}
+            disabled={isTrendingLoading}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isTrendingLoading && <LoadingSpinner />}
+            Test Get Trending Projects
+          </button>
+          {trendingData && (
+            <div className="bg-gray-50 p-4 rounded">
+              <h4 className="font-medium mb-2">Current Data:</h4>
+              <p className="text-sm text-gray-600">
+                Found {trendingData?.data?.length || 0} trending projects
+              </p>
+            </div>
+          )}
+          {trendingError && (
+            <div className="bg-red-50 p-4 rounded">
+              <p className="text-red-700 text-sm">{trendingError?.data?.message || 'Error loading trending projects'}</p>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'categories',
+      title: 'Projects by Category',
+      description: 'GET /api/projects/categories',
+      status: <StatusIndicator data={categoriesData} error={categoriesError} isLoading={isCategoriesLoading} />,
+      component: (
+        <div className="space-y-4">
+          <button
+            onClick={handleTestCategories}
+            disabled={isCategoriesLoading}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isCategoriesLoading && <LoadingSpinner />}
+            Test Get Projects by Category
+          </button>
+          {categoriesData && (
+            <div className="bg-gray-50 p-4 rounded">
+              <h4 className="font-medium mb-2">Current Data:</h4>
+              <p className="text-sm text-gray-600">
+                Found {Object.keys(categoriesData?.data || {}).length} categories
+              </p>
+              <div className="mt-2 text-xs text-gray-500">
+                Categories: {Object.keys(categoriesData?.data || {}).join(', ')}
+              </div>
+            </div>
+          )}
+          {categoriesError && (
+            <div className="bg-red-50 p-4 rounded">
+              <p className="text-red-700 text-sm">{categoriesError?.data?.message || 'Error loading categories'}</p>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'single-project',
+      title: 'Single Project',
+      description: 'GET /api/projects/:slug',
+      status: <StatusIndicator data={projectData} error={projectError} isLoading={isProjectLoading} />,
+      component: (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Project Slug:</label>
+            <input
+              type="text"
+              value={testInputs.projectSlug}
+              onChange={(e) => setTestInputs(prev => ({ ...prev, projectSlug: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              placeholder="enter-project-slug"
+            />
+          </div>
+          <button
+            onClick={handleTestProject}
+            disabled={!testInputs.projectSlug || isProjectLoading}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isProjectLoading && <LoadingSpinner />}
+            Test Get Single Project
+          </button>
+          {projectData && (
+            <div className="bg-gray-50 p-4 rounded">
+              <h4 className="font-medium mb-2">Current Data:</h4>
+              <p className="text-sm text-gray-600">
+                Project: {projectData?.data?.title}
+              </p>
+              <p className="text-xs text-gray-500">
+                Status: {projectData?.data?.status} | Target: ${projectData?.data?.targetAmount}
+              </p>
+            </div>
+          )}
+          {projectError && (
+            <div className="bg-red-50 p-4 rounded">
+              <p className="text-red-700 text-sm">{projectError?.data?.message || 'Error loading project'}</p>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'creator-projects',
+      title: 'Creator Projects',
+      description: 'GET /api/projects/creator/:creatorId',
+      status: <StatusIndicator data={creatorProjectsData} error={creatorProjectsError} isLoading={isCreatorProjectsLoading} />,
+      component: (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Creator ID:</label>
+            <input
+              type="text"
+              value={testInputs.creatorId}
+              onChange={(e) => setTestInputs(prev => ({ ...prev, creatorId: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              placeholder="creator-cognito-id"
+            />
+          </div>
+          <button
+            onClick={handleTestCreatorProjects}
+            disabled={isCreatorProjectsLoading}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isCreatorProjectsLoading && <LoadingSpinner />}
+            Test Get Creator Projects
+          </button>
+          {creatorProjectsData && (
+            <div className="bg-gray-50 p-4 rounded">
+              <h4 className="font-medium mb-2">Current Data:</h4>
+              <p className="text-sm text-gray-600">
+                Found {creatorProjectsData?.data?.length || 0} projects for creator
+              </p>
+              {creatorProjectsData?.meta && (
+                <p className="text-xs text-gray-500">
+                  Page {creatorProjectsData.meta.currentPage} of {creatorProjectsData.meta.totalPages}
+                </p>
+              )}
+            </div>
+          )}
+          {creatorProjectsError && (
+            <div className="bg-red-50 p-4 rounded">
+              <p className="text-red-700 text-sm">{creatorProjectsError?.data?.message || 'Error loading creator projects'}</p>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'project-updates',
+      title: 'Project Updates',
+      description: 'GET /api/projects/:id/updates',
+      status: <StatusIndicator data={updatesData} error={updatesError} isLoading={isUpdatesLoading} />,
+      component: (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Project ID:</label>
+            <input
+              type="text"
+              value={testInputs.projectId}
+              onChange={(e) => setTestInputs(prev => ({ ...prev, projectId: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              placeholder="project-mongodb-id"
+            />
+          </div>
+          <button
+            onClick={handleTestUpdates}
+            disabled={!testInputs.projectId || isUpdatesLoading}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isUpdatesLoading && <LoadingSpinner />}
+            Test Get Project Updates
+          </button>
+          {updatesData && (
+            <div className="bg-gray-50 p-4 rounded">
+              <h4 className="font-medium mb-2">Current Data:</h4>
+              <p className="text-sm text-gray-600">
+                Found {updatesData?.data?.length || 0} updates
+              </p>
+            </div>
+          )}
+          {updatesError && (
+            <div className="bg-red-50 p-4 rounded">
+              <p className="text-red-700 text-sm">{updatesError?.data?.message || 'Error loading updates'}</p>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'project-stats',
+      title: 'Project Statistics',
+      description: 'GET /api/projects/:id/stats',
+      status: <StatusIndicator data={statsData} error={statsError} isLoading={isStatsLoading} />,
+      component: (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Project ID:</label>
+            <input
+              type="text"
+              value={testInputs.projectId}
+              onChange={(e) => setTestInputs(prev => ({ ...prev, projectId: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              placeholder="project-mongodb-id"
+            />
+          </div>
+          <button
+            onClick={handleTestStats}
+            disabled={!testInputs.projectId || isStatsLoading}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isStatsLoading && <LoadingSpinner />}
+            Test Get Project Stats
+          </button>
+          {statsData && (
+            <div className="bg-gray-50 p-4 rounded">
+              <h4 className="font-medium mb-2">Current Data:</h4>
+              <p className="text-sm text-gray-600">
+                Project stats loaded successfully
+              </p>
+              {statsData?.data?.project && (
+                <div className="text-xs text-gray-500 mt-2">
+                  <p>Funding: {statsData.data.project.fundingProgress?.toFixed(1)}%</p>
+                  <p>Backers: {statsData.data.project.backerCount}</p>
+                  <p>Days remaining: {statsData.data.project.daysRemaining}</p>
+                </div>
+              )}
+            </div>
+          )}
+          {statsError && (
+            <div className="bg-red-50 p-4 rounded">
+              <p className="text-red-700 text-sm">{statsError?.data?.message || 'Error loading stats'}</p>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'add-update',
+      title: 'Add Project Update',
+      description: 'POST /api/projects/:id/updates',
+      status: null,
+      component: (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Project ID:</label>
+            <input
+              type="text"
+              value={testInputs.projectId}
+              onChange={(e) => setTestInputs(prev => ({ ...prev, projectId: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              placeholder="project-mongodb-id"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Update Title:</label>
+            <input
+              type="text"
+              value={testInputs.updateTitle}
+              onChange={(e) => setTestInputs(prev => ({ ...prev, updateTitle: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              placeholder="Update title"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Update Content:</label>
+            <textarea
+              value={testInputs.updateContent}
+              onChange={(e) => setTestInputs(prev => ({ ...prev, updateContent: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              rows="3"
+              placeholder="Update content"
+            />
+          </div>
+          <button
+            onClick={handleAddUpdate}
+            disabled={isAddingUpdate || !testInputs.projectId}
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isAddingUpdate && <LoadingSpinner />}
+            {isAddingUpdate ? 'Adding...' : 'Test Add Project Update'}
+          </button>
+          {addUpdateError && (
+            <div className="bg-red-50 p-4 rounded">
+              <p className="text-red-700 text-sm">{addUpdateError?.data?.message || 'Error adding update'}</p>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'update-project',
+      title: 'Update Project',
+      description: 'PUT /api/projects/:id',
+      status: null,
+      component: (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Project ID:</label>
+            <input
+              type="text"
+              value={testInputs.projectId}
+              onChange={(e) => setTestInputs(prev => ({ ...prev, projectId: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              placeholder="project-mongodb-id"
+            />
+          </div>
+          <button
+            onClick={handleUpdateProject}
+            disabled={isUpdating || !testInputs.projectId}
+            className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isUpdating && <LoadingSpinner />}
+            {isUpdating ? 'Updating...' : 'Test Update Project'}
+          </button>
+          <p className="text-sm text-gray-600">
+            This will update the project title and description to test values.
+          </p>
+          {updateError && (
+            <div className="bg-red-50 p-4 rounded">
+              <p className="text-red-700 text-sm">{updateError?.data?.message || 'Error updating project'}</p>
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'delete-project',
+      title: 'Delete Project',
+      description: 'DELETE /api/projects/:id',
+      status: null,
+      component: (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Project ID:</label>
+            <input
+              type="text"
+              value={testInputs.projectId}
+              onChange={(e) => setTestInputs(prev => ({ ...prev, projectId: e.target.value }))}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              placeholder="project-mongodb-id"
+            />
+          </div>
+          <button
+            onClick={handleDeleteProject}
+            disabled={isDeleting || !testInputs.projectId}
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {isDeleting && <LoadingSpinner />}
+            {isDeleting ? 'Deleting...' : 'Test Delete Project'}
+          </button>
+          <p className="text-sm text-red-600">
+            ⚠️ Warning: This will permanently delete or deactivate the project!
+          </p>
+          {deleteError && (
+            <div className="bg-red-50 p-4 rounded">
+              <p className="text-red-700 text-sm">{deleteError?.data?.message || 'Error deleting project'}</p>
+            </div>
+          )}
+        </div>
+      )
+    }
+  ];
+
+  return (
+    <div className="max-w-7xl mx-auto p-6 bg-gray-50 min-h-screen">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Project API Test Suite</h1>
+        <p className="text-gray-600">Test all project-related API endpoints with real-time monitoring</p>
+        <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 className="font-medium text-blue-900 mb-2">API Status Overview</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="flex justify-between">
+              <span>Trending:</span>
+              <StatusIndicator data={trendingData} error={trendingError} isLoading={isTrendingLoading} />
+            </div>
+            <div className="flex justify-between">
+              <span>Categories:</span>
+              <StatusIndicator data={categoriesData} error={categoriesError} isLoading={isCategoriesLoading} />
+            </div>
+            <div className="flex justify-between">
+              <span>Project:</span>
+              <StatusIndicator data={projectData} error={projectError} isLoading={isProjectLoading} />
+            </div>
+            <div className="flex justify-between">
+              <span>Creator:</span>
+              <StatusIndicator data={creatorProjectsData} error={creatorProjectsError} isLoading={isCreatorProjectsLoading} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        
+        {/* Test Navigation */}
+        <div className="lg:col-span-1">
+          <div className="bg-white border rounded-lg p-4 sticky top-6">
+            <h2 className="font-semibold text-gray-900 mb-4">Test Categories</h2>
+            <nav className="space-y-2">
+              {testSections.map((section) => (
+                <button
+                  key={section.id}
+                  onClick={() => setActiveTest(section.id)}
+                  className={`w-full text-left px-3 py-2 rounded text-sm flex justify-between items-center ${
+                    activeTest === section.id
+                      ? 'bg-blue-100 text-blue-700 font-medium'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <span>{section.title}</span>
+                  {section.status}
+                </button>
+              ))}
+            </nav>
+            
+            <div className="mt-6 pt-4 border-t space-y-2">
+              <button
+                onClick={() => setResults([])}
+                className="w-full text-sm text-gray-500 hover:text-gray-700 py-2"
+              >
+                Clear Results ({results.length})
+              </button>
+              <div className="text-xs text-gray-400">
+                Test inputs are auto-saved
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Test Content */}
+        <div className="lg:col-span-2">
+          <div className="bg-white border rounded-lg p-6">
+            {testSections.map((section) => (
+              activeTest === section.id && (
+                <div key={section.id}>
+                  <div className="mb-6">
+                    <h2 className="text-2xl font-semibold text-gray-900 mb-2">{section.title}</h2>
+                    <div className="bg-blue-50 border border-blue-200 rounded px-3 py-2">
+                      <code className="text-sm text-blue-800">{section.description}</code>
+                    </div>
+                  </div>
+                  {section.component}
+                </div>
+              )
+            ))}
+          </div>
+        </div>
+
+        {/* Results */}
+        <div className="lg:col-span-1">
+          <div className="bg-white border rounded-lg p-6">
+            <h2 className="font-semibold text-gray-900 mb-4">
+              Test Results ({results.length})
+            </h2>
+            
+            {results.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-gray-400 text-3xl mb-2">🧪</div>
+                <p className="text-gray-500 text-sm">No tests run yet</p>
+                <p className="text-gray-400 text-xs">Results will appear here</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {results.map((result) => (
+                  <div 
+                    key={result.id}
+                    className={`border rounded-lg p-3 ${
+                      result.success 
+                        ? 'border-green-200 bg-green-50' 
+                        : 'border-red-200 bg-red-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`text-xs font-medium ${
+                        result.success ? 'text-green-800' : 'text-red-800'
+                      }`}>
+                        {result.success ? 'SUCCESS' : 'FAILED'}
+                      </span>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        {result.duration && (
+                          <span>{result.duration}ms</span>
+                        )}
+                        <span>
+                          {new Date(result.timestamp).toLocaleTimeString()}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <h4 className="text-sm font-medium text-gray-900 mb-1">
+                      {result.title}
+                    </h4>
+                    
+                    {result.success ? (
+                      <div>
+                        <p className="text-xs text-gray-600 mb-2">
+                          API call successful
+                        </p>
+                        {result.data && (
+                          <button
+                            onClick={() => setExpandedResult(
+                              expandedResult === result.id ? null : result.id
+                            )}
+                            className="text-xs text-blue-600 hover:text-blue-800"
+                          >
+                            {expandedResult === result.id ? 'Hide' : 'Show'} Response
+                          </button>
+                        )}
+                        {expandedResult === result.id && result.data && (
+                          <div className="mt-2 p-2 bg-white rounded border">
+                            <pre className="text-xs text-gray-700 whitespace-pre-wrap max-h-32 overflow-y-auto">
+                              {JSON.stringify(result.data, null, 2)}
+                            </pre>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-red-700">
+                        {result.error}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions Bar */}
+      <div className="fixed bottom-6 right-6">
+        <div className="bg-white border rounded-lg shadow-lg p-4">
+          <h3 className="font-medium text-gray-900 mb-3">Quick Actions</h3>
+          <div className="space-y-2">
+            <button
+              onClick={handleTestTrending}
+              disabled={isTrendingLoading}
+              className="w-full text-left text-sm px-3 py-2 rounded bg-blue-50 hover:bg-blue-100 disabled:opacity-50"
+            >
+              Test Trending
+            </button>
+            <button
+              onClick={handleTestCategories}
+              disabled={isCategoriesLoading}
+              className="w-full text-left text-sm px-3 py-2 rounded bg-blue-50 hover:bg-blue-100 disabled:opacity-50"
+            >
+              Test Categories
+            </button>
+            <button
+              onClick={() => {
+                handleTestTrending();
+                setTimeout(() => handleTestCategories(), 1000);
+                setTimeout(() => handleTestCreatorProjects(), 2000);
+              }}
+              className="w-full text-left text-sm px-3 py-2 rounded bg-green-50 hover:bg-green-100"
+            >
+              Run All Read Tests
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ProjectAPITest;

@@ -1,0 +1,29 @@
+{
+  "watch": ["src"],
+  "ext": "ts,json",
+  "ignore": [
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts",
+    "dist",
+    "node_modules",
+    "logs",
+    "uploads"
+  ],
+  "exec": "ts-node --transpile-only src/index.ts",
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "delay": 1000,
+  "verbose": true,
+  "restartable": "rs",
+  "colours": true,
+  "runOnChangeOnly": false,
+  "legacyWatch": false,
+  "pollingInterval": 100,
+  "events": {
+    "start": "echo '🚀 PujiGori Backend starting...'",
+    "restart": "echo '🔄 PujiGori Backend restarting...'",
+    "crash": "echo '💥 PujiGori Backend crashed!'",
+    "exit": "echo '👋 PujiGori Backend stopped'"
+  }
+}

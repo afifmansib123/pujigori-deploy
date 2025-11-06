@@ -1,0 +1,444 @@
+"use client"
+import React, { useState, useRef } from 'react';
+import { useUploadMultipleFilesMutation } from "@/state/api";
+
+const FileUploadTest = () => {
+  const [uploadFiles, { isLoading: isUploading, error: uploadError }] = useUploadMultipleFilesMutation();
+  
+  const fileInputRef = useRef(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [uploadResults, setUploadResults] = useState([]);
+  const [uploadSettings, setUploadSettings] = useState({
+    folder: 'test-uploads',
+    resize: '', // e.g., '800x600'
+    quality: 85
+  });
+  const [dragActive, setDragActive] = useState(false);
+
+  // File validation
+  const validateFile = (file) => {
+    const allowedTypes = [
+      'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+      'video/mp4', 'video/webm', 'application/pdf', 'text/plain'
+    ];
+    
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    
+    if (!allowedTypes.includes(file.type)) {
+      return `File type ${file.type} is not allowed`;
+    }
+    
+    if (file.size > maxSize) {
+      return `File size ${(file.size / 1024 / 1024).toFixed(2)}MB exceeds 10MB limit`;
+    }
+    
+    return null;
+  };
+
+  // Handle file selection
+  const handleFileSelect = (files) => {
+    const fileArray = Array.from(files);
+    const validFiles = [];
+    const errors = [];
+
+    fileArray.forEach(file => {
+      const error = validateFile(file);
+      if (error) {
+        errors.push(`${file.name}: ${error}`);
+      } else {
+        validFiles.push({
+          file,
+          id: Math.random().toString(36).substr(2, 9),
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
+        });
+      }
+    });
+
+    if (errors.length > 0) {
+      alert('Some files were rejected:\n' + errors.join('\n'));
+    }
+
+    if (validFiles.length + selectedFiles.length > 10) {
+      alert('Maximum 10 files allowed. Some files were not added.');
+      const remainingSlots = 10 - selectedFiles.length;
+      setSelectedFiles(prev => [...prev, ...validFiles.slice(0, remainingSlots)]);
+    } else {
+      setSelectedFiles(prev => [...prev, ...validFiles]);
+    }
+  };
+
+  // File input change
+  const handleFileInputChange = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleFileSelect(e.target.files);
+    }
+  };
+
+  // Drag and drop handlers
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFileSelect(e.dataTransfer.files);
+    }
+  };
+
+  // Remove file
+  const removeFile = (fileId) => {
+    setSelectedFiles(prev => {
+      const updated = prev.filter(f => f.id !== fileId);
+      // Revoke object URL for images
+      const removedFile = prev.find(f => f.id === fileId);
+      if (removedFile && removedFile.preview) {
+        URL.revokeObjectURL(removedFile.preview);
+      }
+      return updated;
+    });
+  };
+
+  // Clear all files
+  const clearAllFiles = () => {
+    selectedFiles.forEach(file => {
+      if (file.preview) {
+        URL.revokeObjectURL(file.preview);
+      }
+    });
+    setSelectedFiles([]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Upload files
+  const handleUpload = async () => {
+    if (selectedFiles.length === 0) {
+      alert('Please select files to upload');
+      return;
+    }
+
+    try {
+      const files = selectedFiles.map(f => f.file);
+      const uploadData = {
+        files,
+        folder: uploadSettings.folder,
+        ...(uploadSettings.resize && { resize: uploadSettings.resize }),
+        ...(uploadSettings.quality && { quality: uploadSettings.quality })
+      };
+
+      const result = await uploadFiles(uploadData).unwrap();
+      
+      console.log('Upload successful:', result);
+      setUploadResults(prev => [...prev, {
+        timestamp: new Date().toISOString(),
+        success: true,
+        data: result,
+        fileCount: files.length
+      }]);
+      
+      // Clear selected files after successful upload
+      clearAllFiles();
+      
+    } catch (error) {
+      console.error('Upload failed:', error);
+      setUploadResults(prev => [...prev, {
+        timestamp: new Date().toISOString(),
+        success: false,
+        error: error?.data?.message || error?.message || 'Upload failed',
+        fileCount: selectedFiles.length
+      }]);
+    }
+  };
+
+  // Format file size
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto p-6 bg-gray-50 min-h-screen">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">File Upload Test</h1>
+        <p className="text-gray-600">Test the file upload functionality with drag & drop, validation, and preview</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Upload Section */}
+        <div className="lg:col-span-2">
+          <div className="bg-white border rounded-lg p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Upload Files</h2>
+            
+            {/* Upload Settings */}
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+              <h3 className="text-sm font-medium text-gray-700 mb-3">Upload Settings</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Folder</label>
+                  <input
+                    type="text"
+                    value={uploadSettings.folder}
+                    onChange={(e) => setUploadSettings(prev => ({ ...prev, folder: e.target.value }))}
+                    className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+                    placeholder="e.g., test-uploads"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Resize (optional)</label>
+                  <input
+                    type="text"
+                    value={uploadSettings.resize}
+                    onChange={(e) => setUploadSettings(prev => ({ ...prev, resize: e.target.value }))}
+                    className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+                    placeholder="e.g., 800x600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Quality (1-100)</label>
+                  <input
+                    type="number"
+                    value={uploadSettings.quality}
+                    onChange={(e) => setUploadSettings(prev => ({ ...prev, quality: parseInt(e.target.value) || 85 }))}
+                    className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+                    min="1"
+                    max="100"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Drop Zone */}
+            <div
+              className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                dragActive 
+                  ? 'border-blue-500 bg-blue-50' 
+                  : 'border-gray-300 hover:border-gray-400'
+              }`}
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={handleFileInputChange}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                accept="image/*,video/mp4,video/webm,application/pdf,text/plain"
+              />
+              
+              <div className="space-y-3">
+                <div className="text-gray-400 text-4xl">📁</div>
+                <div>
+                  <p className="text-lg font-medium text-gray-700">
+                    Drop files here or click to browse
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Supports: Images, Videos (MP4, WebM), PDFs, Text files
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Max 10 files, 10MB each
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Selected Files */}
+            {selectedFiles.length > 0 && (
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium text-gray-700">
+                    Selected Files ({selectedFiles.length}/10)
+                  </h3>
+                  <button
+                    onClick={clearAllFiles}
+                    className="text-xs text-red-600 hover:text-red-800"
+                  >
+                    Clear All
+                  </button>
+                </div>
+                
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {selectedFiles.map((file) => (
+                    <div key={file.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      {file.preview ? (
+                        <img 
+                          src={file.preview} 
+                          alt={file.name}
+                          className="w-12 h-12 object-cover rounded"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-gray-500 text-xs">
+                          {file.type.includes('video') ? '🎥' : 
+                           file.type.includes('pdf') ? '📄' : '📄'}
+                        </div>
+                      )}
+                      
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
+                        <p className="text-xs text-gray-500">
+                          {formatFileSize(file.size)} • {file.type}
+                        </p>
+                      </div>
+                      
+                      <button
+                        onClick={() => removeFile(file.id)}
+                        className="text-red-500 hover:text-red-700 text-sm font-medium"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Upload Button */}
+            <div className="mt-6">
+              <button
+                onClick={handleUpload}
+                disabled={isUploading || selectedFiles.length === 0}
+                className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isUploading ? (
+                  <span className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Uploading {selectedFiles.length} files...
+                  </span>
+                ) : (
+                  `Upload ${selectedFiles.length} files`
+                )}
+              </button>
+            </div>
+
+            {/* Upload Error */}
+            {uploadError && (
+              <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-red-700 text-sm">
+                  <span className="font-medium">Upload Error:</span><br/>
+                  {uploadError?.data?.message || uploadError?.message || 'Unknown error'}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Results Sidebar */}
+        <div className="lg:col-span-1">
+          <div className="bg-white border rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Upload Results</h2>
+            
+            {uploadResults.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-gray-400 text-3xl mb-2">📤</div>
+                <p className="text-gray-500 text-sm">No uploads yet</p>
+                <p className="text-gray-400 text-xs">Upload results will appear here</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {uploadResults.slice().reverse().map((result, index) => (
+                  <div 
+                    key={index} 
+                    className={`border rounded-lg p-3 ${
+                      result.success 
+                        ? 'border-green-200 bg-green-50' 
+                        : 'border-red-200 bg-red-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`text-xs font-medium ${
+                        result.success ? 'text-green-800' : 'text-red-800'
+                      }`}>
+                        {result.success ? 'SUCCESS' : 'FAILED'}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {new Date(result.timestamp).toLocaleTimeString()}
+                      </span>
+                    </div>
+                    
+                    <p className="text-sm text-gray-700 mb-2">
+                      {result.fileCount} files
+                    </p>
+                    
+                    {result.success && result.data ? (
+                      <div className="space-y-1">
+                        {result.data.files?.slice(0, 3).map((file, i) => (
+                          <div key={i} className="text-xs text-gray-600">
+                            <span className="font-medium">{file.originalName}</span>
+                            <br/>
+                            <a 
+                              href={file.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 break-all"
+                            >
+                              {file.url}
+                            </a>
+                          </div>
+                        ))}
+                        {result.data.files?.length > 3 && (
+                          <p className="text-xs text-gray-500">
+                            +{result.data.files.length - 3} more files
+                          </p>
+                        )}
+                      </div>
+                    ) : result.error && (
+                      <p className="text-xs text-red-700">{result.error}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {uploadResults.length > 0 && (
+              <button
+                onClick={() => setUploadResults([])}
+                className="mt-4 w-full text-xs text-gray-500 hover:text-gray-700 py-2 border border-gray-200 rounded"
+              >
+                Clear Results
+              </button>
+            )}
+          </div>
+
+          {/* API Info */}
+          <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-blue-900 mb-2">API Endpoint</h3>
+            <div className="text-xs text-blue-800 space-y-1">
+              <div>
+                <span className="font-mono bg-white px-2 py-1 rounded">POST</span> 
+                <span className="ml-2">/api/upload/multiple</span>
+              </div>
+              <div className="pt-2 text-blue-700">
+                Requires creator authentication
+              </div>
+              <div className="text-blue-700">
+                Check console for detailed responses
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default FileUploadTest;
