@@ -30,11 +30,11 @@ public async generateDonationQR(
     // Keep JSON data for database storage
     const qrData: IQRCodeData = {
       donationId: donation._id,
-      projectId: donation.project,
+      projectId: typeof donation.project === 'string' ? donation.project : donation.project._id,
       amount: donation.amount,
       rewardTier: donation.rewardTier,
       rewardValue: donation.rewardValue,
-      donorName: donation.isAnonymous 
+      donorName: donation.isAnonymous
         ? 'Anonymous'
         : donation.donorInfo?.name || 'Registered User',
       donorEmail: donation.isAnonymous
