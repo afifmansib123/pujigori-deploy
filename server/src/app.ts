@@ -37,7 +37,27 @@ class App {
 
     // CORS configuration
     this.app.use(cors({
-      origin: this.getAllowedOrigins(),
+      origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or Postman)
+        if (!origin) {
+          return callback(null, true);
+        }
+
+        const allowedOrigins = this.getAllowedOrigins();
+
+        // Check if origin is in the allowed list
+        if (allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+
+        // Check if origin matches Vercel preview URL pattern
+        if (origin.match(/^https:\/\/pujigori-deploy.*\.vercel\.app$/)) {
+          return callback(null, true);
+        }
+
+        // Reject all other origins
+        callback(new Error('Not allowed by CORS'));
+      },
       credentials: true,
       optionsSuccessStatus: 200,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
