@@ -30,3 +30,6 @@ get creator id from the auth middleware.
 *********Payment Related Blockers*******
 5. **************** Had to make status manually active for projects to accept donations. had to change date date formsts also ***************
 
+
+********************
+
