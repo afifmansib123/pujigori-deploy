@@ -119,8 +119,16 @@ const Auth = ({ children }: { children: React.ReactNode }) => {
             oauth: {
               domain: process.env.NEXT_PUBLIC_AWS_COGNITO_DOMAIN!,
               scopes:['openid', 'email', 'profile'],
-              redirectSignIn: ["http://localhost:3000/"],
-              redirectSignOut: ["http://localhost:3000/"],
+              redirectSignIn: [
+                typeof window !== 'undefined'
+                  ? window.location.origin + '/'
+                  : 'https://pujigori-deploy.vercel.app/'
+              ],
+              redirectSignOut: [
+                typeof window !== 'undefined'
+                  ? window.location.origin + '/'
+                  : 'https://pujigori-deploy.vercel.app/'
+              ],
               responseType: "code",
               providers: ["Google"],
             },
