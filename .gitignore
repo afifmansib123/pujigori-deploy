@@ -134,7 +134,7 @@ uploads/
 public/uploads/
 
 # PM2 files
-ecosystem.config.js
+# ecosystem.config.js is needed for deployment
 .pm2/
 
 # Docker
