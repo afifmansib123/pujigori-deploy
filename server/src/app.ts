@@ -50,8 +50,8 @@ class App {
           return callback(null, true);
         }
 
-        // Check if origin matches Vercel preview URL pattern
-        if (origin.match(/^https:\/\/pujigori-deploy.*\.vercel\.app$/)) {
+        // Check if origin matches Vercel URL pattern (both production and preview URLs)
+        if (origin.match(/^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/)) {
           return callback(null, true);
         }
 
