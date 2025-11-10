@@ -2,6 +2,7 @@
 import { motion } from "framer-motion";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 
 const HeroSection = () => {
   const [isClient, setIsClient] = useState(false);
@@ -182,9 +183,11 @@ const HeroSection = () => {
                   />
                   
                   {/* Main circular image */}
-                  <img
+                  <Image
                     src={image.src}
                     alt={image.alt}
+                    width={isMobile ? 96 : 144}
+                    height={isMobile ? 96 : 144}
                     className="w-full h-full object-cover rounded-full relative z-10"
                   />
                 </motion.div>
