@@ -250,7 +250,7 @@ const donationData: any = {
       ResponseUtils.success("Payment initialized successfully", {
         donationId: donation._id,
         transactionId,
-        paymentGateway: sslResponse.redirectGatewayURL,
+        paymentGateway: sslResponse.GatewayPageURL || sslResponse.redirectGatewayURL,
         sessionKey: sslResponse.sessionkey,
         gateways: sslResponse.gw,
       })

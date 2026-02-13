@@ -4,8 +4,17 @@ const nextConfig: NextConfig = {
   images: {
     domains: ['anewtestingbucketisbetter.s3.ap-southeast-1.amazonaws.com'],
   },
-    eslint: {
-    ignoreDuringBuilds: true,  // ADD THIS LINE
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  async rewrites() {
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${backendUrl}/api/:path*`,
+      },
+    ];
   },
 };
 
